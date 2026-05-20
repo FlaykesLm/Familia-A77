@@ -251,7 +251,7 @@ client.on("ready", async () => {
         });
 
         const player = createAudioPlayer();
-        const resource = createAudioResource("silencio.mp3"); // precisa existir na pasta do bot
+        const resource = createAudioResource("silencio.mp3");
 
         player.play(resource);
         conexao.subscribe(player);
@@ -259,6 +259,58 @@ client.on("ready", async () => {
         console.log("🔊 Bot conectado em call 24h!");
     } catch (err) {
         console.log("Erro ao conectar no VC:", err);
+    }
+}); // FECHA O READY AQUI
+
+// ====================== BOAS-VINDAS ======================
+client.on("guildMemberAdd", async (member) => {
+    try {
+
+        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+
+        if (!canalBoasVindas)
+            return console.log("❌ Canal de boas-vindas não encontrado!");
+
+        const embed = new EmbedBuilder()
+            .setColor("#2b2d31")
+            .setTitle("🎉 Bem-vindo(a)!")
+            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: "💡 Sabia que...",
+                    value: `Você é o **${member.guild.memberCount}º** membro a entrar no servidor!`,
+                    inline: true
+                },
+                {
+                    name: "🏷️ Tag do Usuário",
+                    value: `\`${member.user.tag}\`\n(${member.id})`,
+                    inline: true
+                },
+                {
+                    name: "❓ Precisando de ajuda?",
+                    value: `Caso você tenha alguma dúvida ou problema, chame a equipe!`,
+                    inline: true
+                },
+                {
+                    name: "⚠️ Evite punições",
+                    value: `Leia as regras do servidor para evitar punições!`,
+                    inline: false
+                }
+            )
+            .setImage("https://i.imgur.com/ZV8ZK0A.png")
+            .setFooter({
+                text: "Todos os direitos reservados."
+            })
+            .setTimestamp();
+
+        await canalBoasVindas.send({
+            content: `🎉 ${member}`,
+            embeds: [embed]
+        });
+
+    } catch (err) {
+        console.log("Erro na mensagem de boas-vindas:", err);
     }
 });
 
