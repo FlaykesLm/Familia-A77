@@ -46,7 +46,7 @@ client.on("ready", async () => {
     const canal = await client.channels.fetch(CANAL_PEDIR_SET);
 
     const embed = new EmbedBuilder()
-        .setTitle("Sistema Família Do7")
+        .setTitle("Sistema Família A7")
         .setDescription(
             "Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!"
         )
@@ -298,7 +298,7 @@ client.on("guildMemberAdd", async (member) => {
                     inline: false
                 }
             )
-            .setImage("https://i.imgur.com/ZV8ZK0A.png")
+            .setImage("https://cdn.discordapp.com/attachments/1430444675600486494/1506805673533636729/standard_4.gif?ex=6a0f99a3&is=6a0e4823&hm=6a1eec5489ea31ed499d727b384367cbf97c6b682b6e1b6b83fb9687af6fc240&")
             .setFooter({
                 text: "Todos os direitos reservados."
             })
