@@ -279,7 +279,7 @@ client.on("guildMemberAdd", async (member) => {
             .addFields(
                 {
                     name: "💡 Sabia que...",
-                    value: `Você é o **${member.guild.memberCount}º** membro a entrar no servidor!`,
+                    value: `Você é o Nosso **${member.guild.memberCount}º** membro a entrar no servidor!`,
                     inline: true
                 },
                 {
@@ -289,16 +289,16 @@ client.on("guildMemberAdd", async (member) => {
                 },
                 {
                     name: "❓ Precisando de ajuda?",
-                    value: `Caso você tenha alguma dúvida ou problema, chame a equipe!`,
+                    value: `Em caso de Duvida fale com um <@&1439068773112873114> Pra Cima !`,
                     inline: true
                 },
                 {
                     name: "⚠️ Evite punições",
-                    value: `Leia as regras do servidor para evitar punições!`,
+                    value: `Leia as https://discord.com/channels/1408821123986231348/1505994371697217676  do servidor para evitar punições!`,
                     inline: false
                 }
             )
-            .setImage("https://cdn.discordapp.com/attachments/1430444675600486494/1506805673533636729/standard_4.gif?ex=6a0f99a3&is=6a0e4823&hm=6a1eec5489ea31ed499d727b384367cbf97c6b682b6e1b6b83fb9687af6fc240&")
+            .setImage("https://cdn.discordapp.com/attachments/1401678843311427594/1506808671923994766/standard.gif?ex=6a0f9c6e&is=6a0e4aee&hm=c7569bb1a09f40419192809660874aef736c626e01b7292f9c43d012ac20e0a2&")
             .setFooter({
                 text: "Todos os direitos reservados."
             })
