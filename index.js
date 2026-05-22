@@ -316,76 +316,88 @@ client.on("guildMemberAdd", async (member) => {
 
 const { PermissionsBitField } = require("discord.js");
 
-// ====================== BAN ======================
-if (command === "ban") {
+const { PermissionsBitField } = require("discord.js");
 
-  if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-    return message.reply("❌ Apenas administradores podem usar isso.");
-  }
+// ====================== COMANDOS ======================
+client.on("messageCreate", async (message) => {
 
-  const user = message.mentions.members.first();
+    if (message.author.bot) return;
+    if (!message.content.startsWith("!")) return;
 
-  if (!user) {
-    return message.reply("❌ Marque um usuário.");
-  }
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
 
-  await user.ban();
+    // ====================== BAN ======================
+    if (command === "ban") {
 
-  message.channel.send(`🔨 ${user.user.tag} foi banido.`);
-}
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply("❌ Apenas administradores podem usar isso.");
+        }
 
-// ====================== UNBAN ======================
-if (command === "unban") {
+        const user = message.mentions.members.first();
 
-  if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-    return message.reply("❌ Apenas administradores podem usar isso.");
-  }
+        if (!user) {
+            return message.reply("❌ Marque um usuário.");
+        }
 
-  const userId = args[0];
+        await user.ban();
 
-  if (!userId) {
-    return message.reply("❌ Coloque o ID do usuário.");
-  }
+        message.channel.send(`🔨 ${user.user.tag} foi banido.`);
+    }
 
-  await message.guild.members.unban(userId);
+    // ====================== UNBAN ======================
+    if (command === "unban") {
 
-  message.channel.send(`✅ Usuário ${userId} foi desbanido.`);
-}
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply("❌ Apenas administradores podem usar isso.");
+        }
 
-// ====================== CASTIGO ======================
-if (command === "castigo") {
+        const userId = args[0];
 
-  if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-    return message.reply("❌ Apenas administradores podem usar isso.");
-  }
+        if (!userId) {
+            return message.reply("❌ Coloque o ID do usuário.");
+        }
 
-  const user = message.mentions.members.first();
+        await message.guild.members.unban(userId);
 
-  if (!user) {
-    return message.reply("❌ Marque um usuário.");
-  }
+        message.channel.send(`✅ Usuário ${userId} foi desbanido.`);
+    }
 
-  await user.roles.add("ID_DO_CARGO_CASTIGO");
+    // ====================== CASTIGO ======================
+    if (command === "castigo") {
 
-  message.channel.send(`⛓️ ${user.user.tag} recebeu castigo.`);
-}
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply("❌ Apenas administradores podem usar isso.");
+        }
 
-// ====================== UNCASTIGO ======================
-if (command === "uncastigo") {
+        const user = message.mentions.members.first();
 
-  if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-    return message.reply("❌ Apenas administradores podem usar isso.");
-  }
+        if (!user) {
+            return message.reply("❌ Marque um usuário.");
+        }
 
-  const user = message.mentions.members.first();
+        await user.roles.add("ID_DO_CARGO_CASTIGO");
 
-  if (!user) {
-    return message.reply("❌ Marque um usuário.");
-  }
+        message.channel.send(`⛓️ ${user.user.tag} recebeu castigo.`);
+    }
 
-  await user.roles.remove("ID_DO_CARGO_CASTIGO");
+    // ====================== UNCASTIGO ======================
+    if (command === "uncastigo") {
 
-  message.channel.send(`✅ Castigo removido de ${user.user.tag}.`);
-}
+        if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            return message.reply("❌ Apenas administradores podem usar isso.");
+        }
 
+        const user = message.mentions.members.first();
+
+        if (!user) {
+            return message.reply("❌ Marque um usuário.");
+        }
+
+        await user.roles.remove("ID_DO_CARGO_CASTIGO");
+
+        message.channel.send(`✅ Castigo removido de ${user.user.tag}.`);
+    }
+
+});
 client.login(TOKEN);
