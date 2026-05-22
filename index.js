@@ -645,9 +645,10 @@ client.on("ready", async () => {
         conexao.subscribe(player);
 
         console.log("🔊 Bot conectado em call 24h!");
-    } catch (err) {
+        } catch (err) {
         console.log("Erro ao conectar no VC:", err);
     }
+});
 
 // ====================== BOAS-VINDAS ======================
 client.on("guildMemberAdd", async (member) => {
