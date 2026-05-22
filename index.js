@@ -241,112 +241,224 @@ client.on("messageCreate", async (message) => {
     message.reply("Enviado para membros!");
 });
 
-// ====================== BAN SYSTEM ======================
+const { Events, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionsBitField } = require("discord.js");
+
+// ====================== DB SIMPLES WARN ======================
+const warns = new Map();
+
+// ====================== STAFF CHECK ======================
+function isStaff(member) {
+    return (
+        member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+        member.roles.cache.has(process.env.STAFF_ROLE_ID)
+    );
+}
+
+// ====================== LOG SYSTEM ======================
+async function sendLog(client, type, userId, reason, staff) {
+    try {
+        const canal = await client.channels.fetch(process.env.CANAL_LOG);
+
+        const embed = new EmbedBuilder()
+            .setTitle(`📌 ${type}`)
+            .addFields(
+                { name: "Usuário", value: `<@${userId}> (${userId})` },
+                { name: "Motivo", value: reason || "Nenhum" },
+                { name: "Staff", value: `<@${staff}>` }
+            )
+            .setColor("Yellow")
+            .setTimestamp();
+
+        canal.send({ embeds: [embed] });
+    } catch (e) {
+        console.log("Erro log:", e);
+    }
+}
+
+// ====================== PAINEL ======================
+client.on("ready", async () => {
+    try {
+        const canal = await client.channels.fetch(process.env.CANAL_MOD);
+
+        const embed = new EmbedBuilder()
+            .setTitle("🛡️ Painel de Moderação")
+            .setDescription("Sistema completo de staff")
+            .setColor("Red");
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("ban").setLabel("Ban").setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId("unban").setLabel("Unban").setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId("kick").setLabel("Kick").setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId("warn").setLabel("Warn").setStyle(ButtonStyle.Primary)
+        );
+
+        canal.send({ embeds: [embed], components: [row] });
+
+    } catch (e) {
+        console.log(e);
+    }
+});
+
+// ====================== INTERACTIONS ======================
 client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.guild) return;
 
+    // 🔒 STAFF ONLY
     if ((interaction.isButton() || interaction.isModalSubmit()) && !isStaff(interaction.member)) {
-        return interaction.reply({ content: "Sem permissão.", ephemeral: true });
+        return interaction.reply({ content: "❌ Sem permissão", ephemeral: true });
     }
 
-    // BAN OPEN
-    if (interaction.isButton() && interaction.customId === "ban_open") {
+    // ================= BUTTONS =================
+    if (interaction.isButton()) {
 
-        const modal = new ModalBuilder()
-            .setCustomId("ban_modal")
-            .setTitle("Banir Usuário");
+        // BAN
+        if (interaction.customId === "ban") {
+            const modal = new ModalBuilder()
+                .setCustomId("ban_modal")
+                .setTitle("Banir Usuário");
 
-        const user = new TextInputBuilder()
-            .setCustomId("user")
-            .setLabel("ID do usuário")
-            .setStyle(TextInputStyle.Short);
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("id")
+                        .setLabel("ID do usuário")
+                        .setStyle(TextInputStyle.Short)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("motivo")
+                        .setLabel("Motivo")
+                        .setStyle(TextInputStyle.Paragraph)
+                )
+            );
 
-        const reason = new TextInputBuilder()
-            .setCustomId("reason")
-            .setLabel("Motivo")
-            .setStyle(TextInputStyle.Paragraph);
+            return interaction.showModal(modal);
+        }
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(user),
-            new ActionRowBuilder().addComponents(reason)
-        );
+        // UNBAN
+        if (interaction.customId === "unban") {
+            const modal = new ModalBuilder()
+                .setCustomId("unban_modal")
+                .setTitle("Desbanir Usuário");
 
-        return interaction.showModal(modal);
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("id")
+                        .setLabel("ID do usuário")
+                        .setStyle(TextInputStyle.Short)
+                )
+            );
+
+            return interaction.showModal(modal);
+        }
+
+        // KICK
+        if (interaction.customId === "kick") {
+            const modal = new ModalBuilder()
+                .setCustomId("kick_modal")
+                .setTitle("Expulsar Usuário");
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("id")
+                        .setLabel("ID do usuário")
+                        .setStyle(TextInputStyle.Short)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("motivo")
+                        .setLabel("Motivo")
+                        .setStyle(TextInputStyle.Paragraph)
+                )
+            );
+
+            return interaction.showModal(modal);
+        }
+
+        // WARN
+        if (interaction.customId === "warn") {
+            const modal = new ModalBuilder()
+                .setCustomId("warn_modal")
+                .setTitle("Warn Usuário");
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("id")
+                        .setLabel("ID do usuário")
+                        .setStyle(TextInputStyle.Short)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId("motivo")
+                        .setLabel("Motivo")
+                        .setStyle(TextInputStyle.Paragraph)
+                )
+            );
+
+            return interaction.showModal(modal);
+        }
     }
 
-    // UNBAN OPEN
-    if (interaction.isButton() && interaction.customId === "unban_open") {
+    // ================= BAN REAL =================
+    if (interaction.customId === "ban_modal") {
 
-        const modal = new ModalBuilder()
-            .setCustomId("unban_modal")
-            .setTitle("Desbanir Usuário");
+        const id = interaction.fields.getTextInputValue("id");
+        const motivo = interaction.fields.getTextInputValue("motivo");
 
-        const user = new TextInputBuilder()
-            .setCustomId("user")
-            .setLabel("ID do usuário")
-            .setStyle(TextInputStyle.Short);
+        const member = await interaction.guild.members.fetch(id).catch(() => null);
+        if (!member) return interaction.reply({ content: "Usuário não encontrado", ephemeral: true });
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(user)
-        );
+        await member.ban({ reason: motivo });
 
-        return interaction.showModal(modal);
+        await sendLog(client, "BAN", id, motivo, interaction.user.id);
+
+        return interaction.reply({ content: "✅ Ban aplicado!", ephemeral: true });
     }
 
-    // BAN
-    if (interaction.isModalSubmit() && interaction.customId === "ban_modal") {
+    // ================= UNBAN REAL =================
+    if (interaction.customId === "unban_modal") {
 
-        const userId = interaction.fields.getTextInputValue("user");
-        const reason = interaction.fields.getTextInputValue("reason");
+        const id = interaction.fields.getTextInputValue("id");
 
-        const embed = new EmbedBuilder()
-            .setTitle("🚫 Usuário Banido")
-            .addFields(
-                { name: "Usuário", value: `<@${userId}>` },
-                { name: "Motivo", value: reason },
-                { name: "Staff", value: `<@${interaction.user.id}>` }
-            )
-            .setColor("DarkRed");
+        await interaction.guild.bans.remove(id).catch(() => {});
 
-        await interaction.reply({ content: "Ban registrado!", ephemeral: true });
+        await sendLog(client, "UNBAN", id, "Sem motivo", interaction.user.id);
 
-        const canal = await client.channels.fetch(CANAL_BAN);
-        canal?.send({ embeds: [embed] });
+        return interaction.reply({ content: "✅ Unban aplicado!", ephemeral: true });
     }
 
-    // UNBAN
-    if (interaction.isModalSubmit() && interaction.customId === "unban_modal") {
+    // ================= KICK =================
+    if (interaction.customId === "kick_modal") {
 
-        const userId = interaction.fields.getTextInputValue("user");
+        const id = interaction.fields.getTextInputValue("id");
+        const motivo = interaction.fields.getTextInputValue("motivo");
 
-        const embed = new EmbedBuilder()
-            .setTitle("✅ Usuário Desbanido")
-            .addFields(
-                { name: "Usuário", value: `<@${userId}>` },
-                { name: "Staff", value: `<@${interaction.user.id}>` }
-            )
-            .setColor("Green");
+        const member = await interaction.guild.members.fetch(id).catch(() => null);
+        if (!member) return interaction.reply({ content: "Usuário não encontrado", ephemeral: true });
 
-        await interaction.reply({ content: "Desban registrado!", ephemeral: true });
+        await member.kick(motivo);
 
-        const canal = await client.channels.fetch(CANAL_BAN);
-        canal?.send({ embeds: [embed] });
+        await sendLog(client, "KICK", id, motivo, interaction.user.id);
+
+        return interaction.reply({ content: "✅ Kick aplicado!", ephemeral: true });
+    }
+
+    // ================= WARN =================
+    if (interaction.customId === "warn_modal") {
+
+        const id = interaction.fields.getTextInputValue("id");
+        const motivo = interaction.fields.getTextInputValue("motivo");
+
+        if (!warns.has(id)) warns.set(id, []);
+        warns.get(id).push(motivo);
+
+        await sendLog(client, "WARN", id, motivo, interaction.user.id);
+
+        return interaction.reply({ content: "⚠️ Warn aplicado!", ephemeral: true });
     }
 });
-
-// ====================== BOAS VINDAS ======================
-client.on("guildMemberAdd", async (member) => {
-
-    const canal = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
-    if (!canal) return;
-
-    const embed = new EmbedBuilder()
-        .setTitle("Bem-vindo!")
-        .setDescription(`Olá ${member}`)
-        .setColor("Blue");
-
-    canal.send({ embeds: [embed] });
-});
-
 client.login(TOKEN);
