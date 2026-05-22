@@ -618,7 +618,7 @@ client.on("guildMemberAdd", async (member) => {
                 },
                 {
                     name: "⚠️ Evite punições",
-                    value: "Leia as regras do servidor para evitar punições!",
+                    value: "Leia as https://discord.com/channels/1408821123986231348/1505994371697217676 do servidor para evitar punições!",
                     inline: false
                 }
             )
