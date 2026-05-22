@@ -617,7 +617,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return interaction.reply({
                 content: "✅ Warn aplicado!",
                 ephemeral: true
-            });
         }
     }
 });
