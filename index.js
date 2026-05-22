@@ -35,15 +35,17 @@ const client = new Client({
 });
 
 // ====================== ENV ======================
-const CANAL_PEDIR_SET = process.env.CANAL_PEDIR_SET;
-const CANAL_ACEITA_SET = process.env.CANAL_ACEITA_SET;
-const CARGO_APROVADO = process.env.CARGO_APROVADO;
-const CARGO_APROVADO_2 = process.env.CARGO_APROVADO_2;
-
-const CANAL_BAN = process.env.CANAL_BAN;
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
-
-const TOKEN = process.env.TOKEN;
+const {
+    CANAL_PEDIR_SET,
+    CANAL_ACEITA_SET,
+    CARGO_APROVADO,
+    CARGO_APROVADO_2,
+    CANAL_BAN,
+    STAFF_ROLE_ID,
+    CANAL_MOD,
+    CALL_24H,
+    TOKEN
+} = process.env;
 
 // ====================== FUNÇÃO STAFF ======================
 function isStaff(member) {
@@ -53,62 +55,59 @@ function isStaff(member) {
     );
 }
 
-// ====================== DB WARN ======================
+// ====================== WARN DB ======================
 const warns = new Map();
 
 // =========================================================
-// ====================== BOT ONLINE =======================
+// ====================== READY ============================
 // =========================================================
 client.on("ready", async () => {
     console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-    // ====================== SEU SET (NÃO ALTERADO) ======================
-    const canal = await client.channels.fetch(CANAL_PEDIR_SET);
+    // ====================== SET (NÃO ALTERADO) ======================
+    const canalSet = await client.channels.fetch(CANAL_PEDIR_SET).catch(() => null);
 
-    const embed = new EmbedBuilder()
-        .setTitle("Sistema Família A7")
-        .setDescription("Registro A7.\n\nSolicite SET usando o botão abaixo.")
-        .setColor("#f1c40f");
+    if (canalSet) {
+        const embed = new EmbedBuilder()
+            .setTitle("Sistema Família A7")
+            .setDescription("Registro A7.\n\nSolicite SET usando o botão abaixo.")
+            .setColor("#f1c40f");
 
-    const btn = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId("abrirRegistro")
-            .setLabel("Registro")
-            .setStyle(ButtonStyle.Primary)
-    );
+        const btn = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("abrirRegistro")
+                .setLabel("Registro")
+                .setStyle(ButtonStyle.Primary)
+        );
 
-    await canal.send({ embeds: [embed], components: [btn] });
+        canalSet.send({ embeds: [embed], components: [btn] });
+    }
 
-    // ====================== PAINEL BAN ======================
+    // ====================== BAN PANEL ======================
     const canalBan = await client.channels.fetch(CANAL_BAN).catch(() => null);
 
     if (canalBan) {
-        const painel = new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("🚫 Sistema de Moderação")
-            .setDescription("Use os botões para banir ou desbanir usuários.")
+            .setDescription("Painel de moderação")
             .setColor("Red");
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("ban_open")
-                .setLabel("Banir usuário")
-                .setStyle(ButtonStyle.Danger),
-
-            new ButtonBuilder()
-                .setCustomId("unban_open")
-                .setLabel("Desbanir usuário")
-                .setStyle(ButtonStyle.Success)
+            new ButtonBuilder().setCustomId("ban").setLabel("Ban").setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId("unban").setLabel("Unban").setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId("kick").setLabel("Kick").setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId("warn").setLabel("Warn").setStyle(ButtonStyle.Primary)
         );
 
-        canalBan.send({ embeds: [painel], components: [row] });
+        canalBan.send({ embeds: [embed], components: [row] });
     }
 
     // ====================== CALL 24H ======================
     try {
-        const canalVC = client.channels.cache.get(process.env.CALL_24H);
+        const canalVC = client.channels.cache.get(CALL_24H);
 
         if (canalVC) {
-            const conexao = joinVoiceChannel({
+            const conn = joinVoiceChannel({
                 channelId: canalVC.id,
                 guildId: canalVC.guild.id,
                 adapterCreator: canalVC.guild.voiceAdapterCreator,
@@ -119,21 +118,20 @@ client.on("ready", async () => {
             const resource = createAudioResource("silencio.mp3");
 
             player.play(resource);
-            conexao.subscribe(player);
+            conn.subscribe(player);
 
-            console.log("🔊 Bot conectado em call 24h!");
+            console.log("🔊 Call 24h conectado!");
         }
     } catch (err) {
         console.log("Erro VC:", err);
     }
 
-    // ====================== PAINEL MOD ======================
-    try {
-        const canalMod = await client.channels.fetch(process.env.CANAL_MOD);
+    // ====================== MOD PANEL ======================
+    const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
 
+    if (canalMod) {
         const embed = new EmbedBuilder()
             .setTitle("🛡️ Painel de Moderação")
-            .setDescription("Sistema completo de staff")
             .setColor("Red");
 
         const row = new ActionRowBuilder().addComponents(
@@ -144,14 +142,11 @@ client.on("ready", async () => {
         );
 
         canalMod.send({ embeds: [embed], components: [row] });
-
-    } catch (e) {
-        console.log(e);
     }
 });
 
 // =========================================================
-// ====================== REGISTRO A7 (NÃO ALTERADO) =======
+// ====================== SET SYSTEM =======================
 // =========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
 
@@ -196,69 +191,61 @@ client.on(Events.InteractionCreate, async (interaction) => {
             );
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`aprovar_${interaction.user.id}`)
-                .setLabel("Aprovar")
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId(`negar_${interaction.user.id}`)
-                .setLabel("Negar")
-                .setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel("Aprovar").setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`negar_${interaction.user.id}`).setLabel("Negar").setStyle(ButtonStyle.Danger)
         );
 
         await canal.send({ embeds: [embed], components: [row] });
-        await interaction.reply({ content: "Enviado!", ephemeral: true });
+
+        return interaction.reply({ content: "Enviado!", ephemeral: true });
     }
 });
 
-// ====================== APROVAR / NEGAR (NÃO ALTERADO) ======================
+// =========================================================
+// ====================== APPROVE / DENY ===================
+// =========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.isButton()) return;
 
     const [acao, userId] = interaction.customId.split("_");
+    if (!acao || !userId) return;
+
     if (!["aprovar", "negar"].includes(acao)) return;
 
-    const membro = await interaction.guild.members.fetch(userId);
-    const embedOriginal = interaction.message.embeds[0];
+    const membro = await interaction.guild.members.fetch(userId).catch(() => null);
+    if (!membro) return;
 
-    const nome = embedOriginal.fields.find(f => f.name === "Nome")?.value;
+    const nome = interaction.message.embeds[0]?.fields?.find(f => f.name === "Nome")?.value;
 
     if (acao === "aprovar") {
-        await membro.setNickname(`A7 ${nome}`);
+        await membro.setNickname(`A7 ${nome || "Membro"}`);
         await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
 
-        await interaction.update({
-            content: "Aprovado!",
-            embeds: [],
-            components: []
-        });
+        return interaction.update({ content: "Aprovado!", embeds: [], components: [] });
     }
 
     if (acao === "negar") {
         await membro.kick("Negado");
-
-        await interaction.update({
-            content: "Negado!",
-            embeds: [],
-            components: []
-        });
+        return interaction.update({ content: "Negado!", embeds: [], components: [] });
     }
 });
 
-// ====================== MODERAÇÃO ======================
+// =========================================================
+// ====================== MODERATION =======================
+// =========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.guild) return;
 
-    if ((interaction.isButton() || interaction.isModalSubmit()) &&
-        !interaction.member.permissions.has(PermissionsBitField.Flags.Administrator) &&
-        !interaction.member.roles.cache.has(STAFF_ROLE_ID)
-    ) {
+    const isButtonOrModal = interaction.isButton() || interaction.isModalSubmit();
+
+    if (isButtonOrModal && !isStaff(interaction.member)) {
         return interaction.reply({ content: "❌ Sem permissão", ephemeral: true });
     }
 
-    // BAN MODAL
+    // ================= MODALS ACTION =================
+
     if (interaction.customId === "ban_modal") {
         const id = interaction.fields.getTextInputValue("id");
         const motivo = interaction.fields.getTextInputValue("motivo");
@@ -271,16 +258,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: "Ban aplicado!", ephemeral: true });
     }
 
-    // UNBAN
     if (interaction.customId === "unban_modal") {
         const id = interaction.fields.getTextInputValue("id");
-
         await interaction.guild.bans.remove(id).catch(() => {});
 
         return interaction.reply({ content: "Unban aplicado!", ephemeral: true });
     }
 
-    // KICK
     if (interaction.customId === "kick_modal") {
         const id = interaction.fields.getTextInputValue("id");
         const motivo = interaction.fields.getTextInputValue("motivo");
@@ -293,7 +277,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: "Kick aplicado!", ephemeral: true });
     }
 
-    // WARN
     if (interaction.customId === "warn_modal") {
         const id = interaction.fields.getTextInputValue("id");
         const motivo = interaction.fields.getTextInputValue("motivo");
@@ -304,75 +287,55 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: "Warn aplicado!", ephemeral: true });
     }
 
-    // BOTÕES MODAL ABRIR
+    // ================= BUTTON OPEN MODALS =================
+
     if (interaction.isButton()) {
 
-        if (interaction.customId === "ban") {
-            const modal = new ModalBuilder()
-                .setCustomId("ban_modal")
-                .setTitle("Banir Usuário");
+        const modal = (id, title, fields) => {
+            const m = new ModalBuilder().setCustomId(id).setTitle(title);
 
-            modal.addComponents(
+            m.addComponents(...fields.map(f =>
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("id").setLabel("ID").setStyle(TextInputStyle.Short)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("motivo").setLabel("Motivo").setStyle(TextInputStyle.Paragraph)
+                    new TextInputBuilder()
+                        .setCustomId(f.id)
+                        .setLabel(f.label)
+                        .setStyle(f.style)
                 )
-            );
+            ));
 
-            return interaction.showModal(modal);
+            return m;
+        };
+
+        if (interaction.customId === "ban") {
+            return interaction.showModal(modal("ban_modal", "Banir Usuário", [
+                { id: "id", label: "ID", style: TextInputStyle.Short },
+                { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+            ]));
         }
 
         if (interaction.customId === "unban") {
-            const modal = new ModalBuilder()
-                .setCustomId("unban_modal")
-                .setTitle("Desbanir Usuário");
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("id").setLabel("ID").setStyle(TextInputStyle.Short)
-                )
-            );
-
-            return interaction.showModal(modal);
+            return interaction.showModal(modal("unban_modal", "Desbanir Usuário", [
+                { id: "id", label: "ID", style: TextInputStyle.Short }
+            ]));
         }
 
         if (interaction.customId === "kick") {
-            const modal = new ModalBuilder()
-                .setCustomId("kick_modal")
-                .setTitle("Kick Usuário");
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("id").setLabel("ID").setStyle(TextInputStyle.Short)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("motivo").setLabel("Motivo").setStyle(TextInputStyle.Paragraph)
-                )
-            );
-
-            return interaction.showModal(modal);
+            return interaction.showModal(modal("kick_modal", "Kick Usuário", [
+                { id: "id", label: "ID", style: TextInputStyle.Short },
+                { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+            ]));
         }
 
         if (interaction.customId === "warn") {
-            const modal = new ModalBuilder()
-                .setCustomId("warn_modal")
-                .setTitle("Warn Usuário");
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("id").setLabel("ID").setStyle(TextInputStyle.Short)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId("motivo").setLabel("Motivo").setStyle(TextInputStyle.Paragraph)
-                )
-            );
-
-            return interaction.showModal(modal);
+            return interaction.showModal(modal("warn_modal", "Warn Usuário", [
+                { id: "id", label: "ID", style: TextInputStyle.Short },
+                { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+            ]));
         }
     }
 });
 
-// ====================== LOGIN ======================
+// =========================================================
+// ====================== LOGIN ============================
+// =========================================================
 client.login(TOKEN);
