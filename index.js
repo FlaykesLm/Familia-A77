@@ -36,15 +36,11 @@ const client = new Client({
 
 // ====================== ENV ======================
 const {
-    CANAL_PEDIR_SET,
-    CANAL_ACEITA_SET,
-    CARGO_APROVADO,
-    CARGO_APROVADO_2,
     CANAL_BAN,
     STAFF_ROLE_ID,
     CANAL_MOD,
     CALL_24H,
-    TOKEN
+
 } = process.env;
 
 // ====================== FUNÇÃO STAFF ======================
@@ -145,91 +141,180 @@ client.on("ready", async () => {
     }
 });
 
-// =========================================================
-// ====================== SET SYSTEM =======================
-// =========================================================
-client.on(Events.InteractionCreate, async (interaction) => {
 
-    if (interaction.isButton() && interaction.customId === "abrirRegistro") {
+// ====================== VARIÁVEIS DO .ENV =================
+const CANAL_PEDIR_SET = process.env.CANAL_PEDIR_SET;
+const CANAL_ACEITA_SET = process.env.CANAL_ACEITA_SET;
+const CARGO_APROVADO = process.env.CARGO_APROVADO;
+const CARGO_APROVADO_2 = process.env.CARGO_APROVADO_2;
+const TOKEN = process.env.TOKEN;
 
-        const modal = new ModalBuilder()
-            .setCustomId("modalRegistro")
-            .setTitle("Solicitação de Set");
+// ====================== BOT ONLINE ========================
+client.on("ready", async () => {
+    console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-        const nome = new TextInputBuilder()
-            .setCustomId("nome")
-            .setLabel("Seu nome")
-            .setStyle(TextInputStyle.Short);
+    const canal = await client.channels.fetch(CANAL_PEDIR_SET);
 
-        const id = new TextInputBuilder()
-            .setCustomId("iduser")
-            .setLabel("Seu ID")
-            .setStyle(TextInputStyle.Short);
+    const embed = new EmbedBuilder()
+        .setTitle("Sistema Família Do7")
+        .setDescription(
+            "Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!"
+        )
+        .addFields({
+            name: "📌 Lembretes",
+            value: "• A resenha aqui é garantida.\n• Não leve tudo a sério.",
+        })
+        .setColor("#f1c40f");
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(nome),
-            new ActionRowBuilder().addComponents(id)
-        );
+    const btn = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId("abrirRegistro")
+            .setLabel("Registro")
+            .setStyle(ButtonStyle.Primary)
+    );
 
-        return interaction.showModal(modal);
-    }
-
-    if (interaction.isModalSubmit() && interaction.customId === "modalRegistro") {
-
-        const nome = interaction.fields.getTextInputValue("nome");
-        const iduser = interaction.fields.getTextInputValue("iduser");
-
-        const canal = await client.channels.fetch(CANAL_ACEITA_SET);
-
-        const embed = new EmbedBuilder()
-            .setTitle("Novo Pedido de Registro")
-            .setColor("#3498db")
-            .addFields(
-                { name: "Usuário", value: `${interaction.user}` },
-                { name: "Nome", value: nome },
-                { name: "ID", value: iduser }
-            );
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel("Aprovar").setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`negar_${interaction.user.id}`).setLabel("Negar").setStyle(ButtonStyle.Danger)
-        );
-
-        await canal.send({ embeds: [embed], components: [row] });
-
-        return interaction.reply({ content: "Enviado!", ephemeral: true });
-    }
+    await canal.send({ embeds: [embed], components: [btn] });
+    console.log("📩 Mensagem de registro enviada!");
 });
 
-// =========================================================
-// ====================== APPROVE / DENY ===================
-// =========================================================
+// ====================== ABRIR MODAL ========================
 client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isButton()) return;
+    if (interaction.customId !== "abrirRegistro") return;
 
+    const modal = new ModalBuilder()
+        .setCustomId("modalRegistro")
+        .setTitle("Solicitação de Set");
+
+    const nome = new TextInputBuilder()
+        .setCustomId("nome")
+        .setLabel("Seu nome*")
+        .setRequired(true)
+        .setStyle(TextInputStyle.Short);
+
+    const id = new TextInputBuilder()
+        .setCustomId("iduser")
+        .setLabel("Seu ID*")
+        .setRequired(true)
+        .setStyle(TextInputStyle.Short);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(nome),
+        new ActionRowBuilder().addComponents(id)
+    );
+
+    await interaction.showModal(modal);
+});
+
+// ====================== RECEBER FORM ========================
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isModalSubmit()) return;
+    if (interaction.customId !== "modalRegistro") return;
+
+    const nome = interaction.fields.getTextInputValue("nome");
+    const iduser = interaction.fields.getTextInputValue("iduser");
+    const canal = await client.channels.fetch(CANAL_ACEITA_SET);
+
+    const embed = new EmbedBuilder()
+        .setTitle("Novo Pedido de Registro")
+        .setColor("#3498db")
+        .setThumbnail(interaction.user.displayAvatarURL())
+        .addFields(
+            { name: "Usuário", value: `${interaction.user}` },
+            { name: "Nome Informado", value: nome },
+            { name: "ID Informado", value: iduser },
+            {
+                name: "Conta Criada em",
+                value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`,
+            }
+        );
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`aprovar_${interaction.user.id}`)
+            .setLabel("Aprovar")
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId(`negar_${interaction.user.id}`)
+            .setLabel("Negar")
+            .setStyle(ButtonStyle.Danger)
+    );
+
+    await canal.send({ embeds: [embed], components: [row] });
+    await interaction.reply({ content: "Seu pedido foi enviado!", ephemeral: true });
+});
+
+// =================== APROVAR / NEGAR ===================
+client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isButton()) return;
 
     const [acao, userId] = interaction.customId.split("_");
-    if (!acao || !userId) return;
-
     if (!["aprovar", "negar"].includes(acao)) return;
 
-    const membro = await interaction.guild.members.fetch(userId).catch(() => null);
-    if (!membro) return;
+    const membro = await interaction.guild.members.fetch(userId);
+    const embedOriginal = interaction.message.embeds[0];
 
-    const nome = interaction.message.embeds[0]?.fields?.find(f => f.name === "Nome")?.value;
+    const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
+    const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
 
+    // ======== APROVAR =========
     if (acao === "aprovar") {
-        await membro.setNickname(`A7 ${nome || "Membro"}`);
-        await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
+        try {
+            await membro.setNickname(`A7 ${nomeInformado}`);
+            await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
 
-        return interaction.update({ content: "Aprovado!", embeds: [], components: [] });
+            const mensagem = `<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7 ** <:emojia7:1429141492080967730>
+
+
+** Parabéns! Agora vc e um membro oficial da Family A7 , 
+Seu set foi aceito , um lugar onde a vibe é diferente,
+A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu próprio jeito... **
+
+
+✨ **Seja muito bem-vindo!** ✨**`;
+
+            await membro.send(mensagem).catch(() => {});
+
+            const embedAprovado = new EmbedBuilder()
+                .setColor("Green")
+                .setTitle("Registro Aprovado")
+                .addFields(
+                    { name: "👤 Usuário:", value: `${membro}` },
+                    { name: "🪪 ID:", value: `${idInformado}` },
+                    { name: "📛 Nome Informado:", value: `A7 ${nomeInformado}` },
+                    { name: "🧭 Acesso aprovado por:", value: `${interaction.user}` }
+                )
+                .setThumbnail(membro.user.displayAvatarURL())
+                .setFooter({ text: "Aprovado com sucesso!" });
+
+            await interaction.update({ embeds: [embedAprovado], components: [] });
+
+        } catch (e) {
+            console.log(e);
+            return interaction.reply({ content: "❌ Erro ao aprovar.", ephemeral: true });
+        }
     }
 
+    // ======== NEGAR =========
     if (acao === "negar") {
-        await membro.kick("Negado");
-        return interaction.update({ content: "Negado!", embeds: [], components: [] });
+        try {
+            await membro.kick("Registro negado pelo aprovador.");
+
+            const embedNegado = new EmbedBuilder()
+                .setColor("Red")
+                .setTitle("Registro Negado")
+                .setDescription(`❌ O usuário **${membro.user.tag}** foi expulso.\nNegado por: ${interaction.user}`)
+                .setThumbnail(membro.user.displayAvatarURL());
+
+            await interaction.update({ embeds: [embedNegado], components: [] });
+
+        } catch (e) {
+            console.log(e);
+            return interaction.reply({ content: "❌ Não foi possível expulsar o usuário.", ephemeral: true });
+        }
     }
 });
+
 
 // =========================================================
 // ====================== MODERATION =======================
@@ -334,8 +419,56 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
+// ====================== BOAS-VINDAS ======================
+client.on("guildMemberAdd", async (member) => {
+    try {
 
-// =========================================================
-// ====================== LOGIN ============================
-// =========================================================
+        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+
+        if (!canalBoasVindas)
+            return console.log("❌ Canal de boas-vindas não encontrado!");
+
+        const embed = new EmbedBuilder()
+            .setColor("#2b2d31")
+            .setTitle("🎉 Bem-vindo(a)!")
+            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: "💡 Sabia que...",
+                    value: `Você é o **${member.guild.memberCount}º** membro a entrar no servidor!`,
+                    inline: true
+                },
+                {
+                    name: "🏷️ Tag do Usuário",
+                    value: `\`${member.user.tag}\`\n(${member.id})`,
+                    inline: true
+                },
+                {
+                    name: "❓ Precisando de ajuda?",
+                    value: `Caso você tenha alguma dúvida Contate Alguem !`,
+                    inline: true
+                },
+                {
+                    name: "⚠️ Evite punições",
+                    value: `Leia as https://discord.com/channels/1408821123986231348/1505994371697217676 do servidor para evitar punições!`,
+                    inline: false
+                }
+            )
+            .setImage("https://cdn.discordapp.com/attachments/1401678843311427594/1506808671923994766/standard.gif?ex=6a1196ae&is=6a10452e&hm=93c394709ee1105e93eb4fb377a6a0a6e9db72cbbf98bb48037d3f5b2e2cb564&")
+            .setFooter({
+                text: "Todos os direitos reservados."
+            })
+            .setTimestamp();
+
+        await canalBoasVindas.send({
+            content: `🎉 ${member}`,
+            embeds: [embed]
+        });
+
+    } catch (err) {
+        console.log("Erro na mensagem de boas-vindas:", err);
+    }
+});
+
 client.login(TOKEN);
