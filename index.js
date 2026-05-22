@@ -35,8 +35,13 @@ const client = new Client({
     ],
 });
 
-// ====================== ENV ======================
+// ====================== ENV SET + MOD ======================
 const {
+    CANAL_PEDIR_SET,
+    CANAL_ACEITA_SET,
+    CARGO_APROVADO,
+    CARGO_APROVADO_2,
+
     CANAL_BAN,
     STAFF_ROLE_ID,
     CANAL_MOD,
@@ -44,6 +49,9 @@ const {
     CANAL_BOAS_VINDAS,
     TOKEN
 } = process.env;
+
+// ====================== DB ======================
+const warns = new Map();
 
 // ====================== STAFF CHECK ======================
 function isStaff(member) {
@@ -53,56 +61,37 @@ function isStaff(member) {
     );
 }
 
-// ====================== WARN DB ======================
-const warns = new Map();
-
 // =========================================================
 // ====================== READY ============================
 // =========================================================
 client.on("ready", async () => {
     console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-    const canalBan = await client.channels.fetch(CANAL_BAN).catch(() => null);
+    // ===== SET PANEL =====
+    const canal = await client.channels.fetch(CANAL_PEDIR_SET).catch(() => null);
 
-    if (canalBan) {
+    if (canal) {
         const embed = new EmbedBuilder()
-            .setTitle("🚫 Sistema de Moderação")
-            .setDescription("Painel de moderação")
-            .setColor("Red");
+            .setTitle("Sistema Família Do7")
+            .setDescription("Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!")
+            .addFields({
+                name: "📌 Lembretes",
+                value: "• A resenha aqui é garantida.\n• Não leve tudo a sério.",
+            })
+            .setColor("#f1c40f");
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("ban").setLabel("Ban").setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId("unban").setLabel("Unban").setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId("kick").setLabel("Kick").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("warn").setLabel("Warn").setStyle(ButtonStyle.Primary)
+        const btn = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("abrirRegistro")
+                .setLabel("Registro")
+                .setStyle(ButtonStyle.Primary)
         );
 
-        canalBan.send({ embeds: [embed], components: [row] });
+        await canal.send({ embeds: [embed], components: [btn] });
+        console.log("📩 Mensagem de registro enviada!");
     }
 
-    try {
-        const canalVC = await client.channels.fetch(CALL_24H).catch(() => null);
-
-        if (canalVC) {
-            const conn = joinVoiceChannel({
-                channelId: canalVC.id,
-                guildId: canalVC.guild.id,
-                adapterCreator: canalVC.guild.voiceAdapterCreator,
-                selfDeaf: false
-            });
-
-            const player = createAudioPlayer();
-            const resource = createAudioResource("silencio.mp3");
-
-            player.play(resource);
-            conn.subscribe(player);
-
-            console.log("🔊 Call 24h conectado!");
-        }
-    } catch (err) {
-        console.log("Erro VC:", err);
-    }
-
+    // ===== MOD PANEL =====
     const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
 
     if (canalMod) {
@@ -122,77 +111,170 @@ client.on("ready", async () => {
 });
 
 // =========================================================
-// ====================== MODERATION =======================
+// ====================== INTERACTIONS (ÚNICO) =============
 // =========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.guild) return;
 
-    // 🔒 PERMISSÃO
-    if ((interaction.isButton() || interaction.isModalSubmit()) &&
-        !interaction.customId.includes("Registro") &&
-        !interaction.customId.includes("modalRegistro") &&
-        !isStaff(interaction.member)
-    ) {
-        if (!interaction.replied && !interaction.deferred) {
-            return interaction.reply({
-                content: "❌ Sem permissão",
-                flags: 64
+    // 🔒 PROTEÇÃO ANTI CRASH
+    if (interaction.replied || interaction.deferred) return;
+
+    // ====================== SET SYSTEM ======================
+    if (interaction.isButton() && interaction.customId === "abrirRegistro") {
+
+        const modal = new ModalBuilder()
+            .setCustomId("modalRegistro")
+            .setTitle("Solicitação de Set");
+
+        const nome = new TextInputBuilder()
+            .setCustomId("nome")
+            .setLabel("Seu nome*")
+            .setRequired(true)
+            .setStyle(TextInputStyle.Short);
+
+        const id = new TextInputBuilder()
+            .setCustomId("iduser")
+            .setLabel("Seu ID*")
+            .setRequired(true)
+            .setStyle(TextInputStyle.Short);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(nome),
+            new ActionRowBuilder().addComponents(id)
+        );
+
+        return interaction.showModal(modal);
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === "modalRegistro") {
+
+        const nome = interaction.fields.getTextInputValue("nome");
+        const iduser = interaction.fields.getTextInputValue("iduser");
+
+        const canal = await client.channels.fetch(CANAL_ACEITA_SET).catch(() => null);
+
+        if (!canal) return;
+
+        const embed = new EmbedBuilder()
+            .setTitle("Novo Pedido de Registro")
+            .setColor("#3498db")
+            .setThumbnail(interaction.user.displayAvatarURL())
+            .addFields(
+                { name: "Usuário", value: `${interaction.user}` },
+                { name: "Nome Informado", value: nome },
+                { name: "ID Informado", value: iduser }
+            );
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`aprovar_${interaction.user.id}`)
+                .setLabel("Aprovar")
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId(`negar_${interaction.user.id}`)
+                .setLabel("Negar")
+                .setStyle(ButtonStyle.Danger)
+        );
+
+        await canal.send({ embeds: [embed], components: [row] });
+
+        return interaction.reply({
+            content: "Seu pedido foi enviado!",
+            flags: 64
+        });
+    }
+
+    // ====================== APPROVE / DENY ======================
+    if (interaction.isButton() && interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("negar_")) {
+
+        const [acao, userId] = interaction.customId.split("_");
+
+        const membro = await interaction.guild.members.fetch(userId).catch(() => null);
+        if (!membro) return;
+
+        const embedOriginal = interaction.message.embeds[0];
+        const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
+        const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
+
+        if (acao === "aprovar") {
+
+            await membro.setNickname(`A7 ${nomeInformado}`).catch(() => {});
+            await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]).catch(() => {});
+
+            return interaction.update({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor("Green")
+                        .setTitle("Registro Aprovado")
+                        .setDescription(`Usuário ${membro} aprovado`)
+                ],
+                components: []
+            });
+        }
+
+        if (acao === "negar") {
+
+            await membro.kick().catch(() => {});
+
+            return interaction.update({
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor("Red")
+                        .setTitle("Registro Negado")
+                        .setDescription(`Usuário ${membro.user.tag} expulso`)
+                ],
+                components: []
             });
         }
     }
 
-    // ================= MODALS =================
+    // ====================== MODALS MOD ======================
     if (interaction.isModalSubmit()) {
 
-        try {
-            if (interaction.customId === "ban_modal") {
-                const id = interaction.fields.getTextInputValue("id");
-                const motivo = interaction.fields.getTextInputValue("motivo");
+        if (interaction.customId === "ban_modal") {
+            const id = interaction.fields.getTextInputValue("id");
+            const motivo = interaction.fields.getTextInputValue("motivo");
 
-                const member = await interaction.guild.members.fetch(id).catch(() => null);
-                if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
+            const member = await interaction.guild.members.fetch(id).catch(() => null);
+            if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
 
-                await member.ban({ reason: motivo });
+            await member.ban({ reason: motivo });
 
-                return interaction.reply({ content: "Ban aplicado!", flags: 64 });
-            }
+            return interaction.reply({ content: "Ban aplicado!", flags: 64 });
+        }
 
-            if (interaction.customId === "unban_modal") {
-                const id = interaction.fields.getTextInputValue("id");
-                await interaction.guild.bans.remove(id).catch(() => {});
+        if (interaction.customId === "unban_modal") {
+            const id = interaction.fields.getTextInputValue("id");
+            await interaction.guild.bans.remove(id).catch(() => {});
 
-                return interaction.reply({ content: "Unban aplicado!", flags: 64 });
-            }
+            return interaction.reply({ content: "Unban aplicado!", flags: 64 });
+        }
 
-            if (interaction.customId === "kick_modal") {
-                const id = interaction.fields.getTextInputValue("id");
-                const motivo = interaction.fields.getTextInputValue("motivo");
+        if (interaction.customId === "kick_modal") {
+            const id = interaction.fields.getTextInputValue("id");
+            const motivo = interaction.fields.getTextInputValue("motivo");
 
-                const member = await interaction.guild.members.fetch(id).catch(() => null);
-                if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
+            const member = await interaction.guild.members.fetch(id).catch(() => null);
+            if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
 
-                await member.kick(motivo);
+            await member.kick(motivo);
 
-                return interaction.reply({ content: "Kick aplicado!", flags: 64 });
-            }
+            return interaction.reply({ content: "Kick aplicado!", flags: 64 });
+        }
 
-            if (interaction.customId === "warn_modal") {
-                const id = interaction.fields.getTextInputValue("id");
-                const motivo = interaction.fields.getTextInputValue("motivo");
+        if (interaction.customId === "warn_modal") {
+            const id = interaction.fields.getTextInputValue("id");
+            const motivo = interaction.fields.getTextInputValue("motivo");
 
-                if (!warns.has(id)) warns.set(id, []);
-                warns.get(id).push(motivo);
+            if (!warns.has(id)) warns.set(id, []);
+            warns.get(id).push(motivo);
 
-                return interaction.reply({ content: "Warn aplicado!", flags: 64 });
-            }
-
-        } catch (err) {
-            console.log(err);
+            return interaction.reply({ content: "Warn aplicado!", flags: 64 });
         }
     }
 
-    // ================= BUTTONS =================
+    // ====================== BUTTON MOD ======================
     if (interaction.isButton()) {
 
         const modal = (id, title, fields) => {
@@ -210,88 +292,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return m;
         };
 
-        if (interaction.customId === "ban") return interaction.showModal(
-            modal("ban_modal", "Banir Usuário", [
-                { id: "id", label: "ID", style: TextInputStyle.Short },
-                { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
-            ])
-        );
+        if (interaction.customId === "ban") return interaction.showModal(modal("ban_modal", "Banir Usuário", [
+            { id: "id", label: "ID", style: TextInputStyle.Short },
+            { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+        ]));
 
-        if (interaction.customId === "unban") return interaction.showModal(
-            modal("unban_modal", "Desbanir Usuário", [
-                { id: "id", label: "ID", style: TextInputStyle.Short }
-            ])
-        );
+        if (interaction.customId === "unban") return interaction.showModal(modal("unban_modal", "Desbanir Usuário", [
+            { id: "id", label: "ID", style: TextInputStyle.Short }
+        ]));
 
-        if (interaction.customId === "kick") return interaction.showModal(
-            modal("kick_modal", "Kick Usuário", [
-                { id: "id", label: "ID", style: TextInputStyle.Short },
-                { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
-            ])
-        );
+        if (interaction.customId === "kick") return interaction.showModal(modal("kick_modal", "Kick Usuário", [
+            { id: "id", label: "ID", style: TextInputStyle.Short },
+            { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+        ]));
 
-        if (interaction.customId === "warn") return interaction.showModal(
-            modal("warn_modal", "Warn Usuário", [
-                { id: "id", label: "ID", style: TextInputStyle.Short },
-                { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
-            ])
-        );
+        if (interaction.customId === "warn") return interaction.showModal(modal("warn_modal", "Warn Usuário", [
+            { id: "id", label: "ID", style: TextInputStyle.Short },
+            { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+        ]));
     }
 });
 
-// =========================================================
-// ====================== BOAS-VINDAS ======================
-// (MANTIDO EXATAMENTE COMO ESTAVA)
-// =========================================================
-client.on("guildMemberAdd", async (member) => {
-    try {
-
-        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
-
-        if (!canalBoasVindas)
-            return console.log("❌ Canal de boas-vindas não encontrado!");
-
-        const embed = new EmbedBuilder()
-            .setColor("#2b2d31")
-            .setTitle("🎉 Bem-vindo(a)!")
-            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-            .addFields(
-                {
-                    name: "💡 Sabia que...",
-                    value: `Você é o **${member.guild.memberCount}º** membro a entrar no servidor!`,
-                    inline: true
-                },
-                {
-                    name: "🏷️ Tag do Usuário",
-                    value: `\`${member.user.tag}\`\n(${member.id})`,
-                    inline: true
-                },
-                {
-                    name: "❓ Precisando de ajuda?",
-                    value: `Caso você tenha alguma dúvida ou problema, chame a equipe!`,
-                    inline: true
-                },
-                {
-                    name: "⚠️ Evite punições",
-                    value: `Leia as regras do servidor para evitar punições!`,
-                    inline: false
-                }
-            )
-            .setImage("https://cdn.discordapp.com/attachments/1401678843311427594/1506808671923994766/standard.gif?ex=6a1196ae&is=6a10452e&hm=93c394709ee1105e93eb4fb377a6a0a6e9db72cbbf98bb48037d3f5b2e2cb564&")
-            .setFooter({
-                text: "Todos os direitos reservados."
-            })
-            .setTimestamp();
-
-        await canalBoasVindas.send({
-            content: `🎉 ${member}`,
-            embeds: [embed]
-        });
-
-    } catch (err) {
-        console.log("Erro na mensagem de boas-vindas:", err);
-    }
-});
-
+// ====================== LOGIN ======================
 client.login(TOKEN);
