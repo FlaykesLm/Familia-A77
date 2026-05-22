@@ -121,114 +121,170 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.replied || interaction.deferred) return;
 
     // ====================== SET SYSTEM ======================
-    if (interaction.isButton() && interaction.customId === "abrirRegistro") {
+  // ====================== BOT ONLINE ========================
+client.on("ready", async () => {
+    console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-        const modal = new ModalBuilder()
-            .setCustomId("modalRegistro")
-            .setTitle("Solicitação de Set");
+    const canal = await client.channels.fetch(CANAL_PEDIR_SET);
 
-        const nome = new TextInputBuilder()
-            .setCustomId("nome")
-            .setLabel("Seu nome*")
-            .setRequired(true)
-            .setStyle(TextInputStyle.Short);
+    const embed = new EmbedBuilder()
+        .setTitle("Sistema Família Do7")
+        .setDescription(
+            "Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!"
+        )
+        .addFields({
+            name: "📌 Lembretes",
+            value: "• A resenha aqui é garantida.\n• Não leve tudo a sério.",
+        })
+        .setColor("#f1c40f");
 
-        const id = new TextInputBuilder()
-            .setCustomId("iduser")
-            .setLabel("Seu ID*")
-            .setRequired(true)
-            .setStyle(TextInputStyle.Short);
+    const btn = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId("abrirRegistro")
+            .setLabel("Registro")
+            .setStyle(ButtonStyle.Primary)
+    );
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(nome),
-            new ActionRowBuilder().addComponents(id)
+    await canal.send({ embeds: [embed], components: [btn] });
+    console.log("📩 Mensagem de registro enviada!");
+});
+
+// ====================== ABRIR MODAL ========================
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isButton()) return;
+    if (interaction.customId !== "abrirRegistro") return;
+
+    const modal = new ModalBuilder()
+        .setCustomId("modalRegistro")
+        .setTitle("Solicitação de Set");
+
+    const nome = new TextInputBuilder()
+        .setCustomId("nome")
+        .setLabel("Seu nome*")
+        .setRequired(true)
+        .setStyle(TextInputStyle.Short);
+
+    const id = new TextInputBuilder()
+        .setCustomId("iduser")
+        .setLabel("Seu ID*")
+        .setRequired(true)
+        .setStyle(TextInputStyle.Short);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(nome),
+        new ActionRowBuilder().addComponents(id)
+    );
+
+    await interaction.showModal(modal);
+});
+
+// ====================== RECEBER FORM ========================
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isModalSubmit()) return;
+    if (interaction.customId !== "modalRegistro") return;
+
+    const nome = interaction.fields.getTextInputValue("nome");
+    const iduser = interaction.fields.getTextInputValue("iduser");
+    const canal = await client.channels.fetch(CANAL_ACEITA_SET);
+
+    const embed = new EmbedBuilder()
+        .setTitle("Novo Pedido de Registro")
+        .setColor("#3498db")
+        .setThumbnail(interaction.user.displayAvatarURL())
+        .addFields(
+            { name: "Usuário", value: `${interaction.user}` },
+            { name: "Nome Informado", value: nome },
+            { name: "ID Informado", value: iduser },
+            {
+                name: "Conta Criada em",
+                value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`,
+            }
         );
 
-        return interaction.showModal(modal);
-    }
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`aprovar_${interaction.user.id}`)
+            .setLabel("Aprovar")
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId(`negar_${interaction.user.id}`)
+            .setLabel("Negar")
+            .setStyle(ButtonStyle.Danger)
+    );
 
-    if (interaction.isModalSubmit() && interaction.customId === "modalRegistro") {
+    await canal.send({ embeds: [embed], components: [row] });
+    await interaction.reply({ content: "Seu pedido foi enviado!", ephemeral: true });
+});
 
-        const nome = interaction.fields.getTextInputValue("nome");
-        const iduser = interaction.fields.getTextInputValue("iduser");
+// =================== APROVAR / NEGAR ===================
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isButton()) return;
 
-        const canal = await client.channels.fetch(CANAL_ACEITA_SET).catch(() => null);
+    const [acao, userId] = interaction.customId.split("_");
+    if (!["aprovar", "negar"].includes(acao)) return;
 
-        if (!canal) return;
+    const membro = await interaction.guild.members.fetch(userId);
+    const embedOriginal = interaction.message.embeds[0];
 
-        const embed = new EmbedBuilder()
-            .setTitle("Novo Pedido de Registro")
-            .setColor("#3498db")
-            .setThumbnail(interaction.user.displayAvatarURL())
-            .addFields(
-                { name: "Usuário", value: `${interaction.user}` },
-                { name: "Nome Informado", value: nome },
-                { name: "ID Informado", value: iduser }
-            );
+    const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
+    const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`aprovar_${interaction.user.id}`)
-                .setLabel("Aprovar")
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId(`negar_${interaction.user.id}`)
-                .setLabel("Negar")
-                .setStyle(ButtonStyle.Danger)
-        );
+    // ======== APROVAR =========
+    if (acao === "aprovar") {
+        try {
+            await membro.setNickname(`A7 ${nomeInformado}`);
+            await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
 
-        await canal.send({ embeds: [embed], components: [row] });
+            const mensagem = `<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7 ** <:emojia7:1429141492080967730>
 
-        return interaction.reply({
-            content: "Seu pedido foi enviado!",
-            flags: 64
-        });
-    }
 
-    // ====================== APPROVE / DENY ======================
-    if (interaction.isButton() && interaction.customId.startsWith("aprovar_") || interaction.customId.startsWith("negar_")) {
+** Parabéns! Agora vc e um membro oficial da Family A7 , 
+Seu set foi aceito , um lugar onde a vibe é diferente,
+A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu próprio jeito... **
 
-        const [acao, userId] = interaction.customId.split("_");
 
-        const membro = await interaction.guild.members.fetch(userId).catch(() => null);
-        if (!membro) return;
+✨ **Seja muito bem-vindo!** ✨**`;
 
-        const embedOriginal = interaction.message.embeds[0];
-        const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
-        const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
+            await membro.send(mensagem).catch(() => {});
 
-        if (acao === "aprovar") {
+            const embedAprovado = new EmbedBuilder()
+                .setColor("Green")
+                .setTitle("Registro Aprovado")
+                .addFields(
+                    { name: "👤 Usuário:", value: `${membro}` },
+                    { name: "🪪 ID:", value: `${idInformado}` },
+                    { name: "📛 Nome Informado:", value: `A7 ${nomeInformado}` },
+                    { name: "🧭 Acesso aprovado por:", value: `${interaction.user}` }
+                )
+                .setThumbnail(membro.user.displayAvatarURL())
+                .setFooter({ text: "Aprovado com sucesso!" });
 
-            await membro.setNickname(`A7 ${nomeInformado}`).catch(() => {});
-            await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]).catch(() => {});
+            await interaction.update({ embeds: [embedAprovado], components: [] });
 
-            return interaction.update({
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor("Green")
-                        .setTitle("Registro Aprovado")
-                        .setDescription(`Usuário ${membro} aprovado`)
-                ],
-                components: []
-            });
-        }
-
-        if (acao === "negar") {
-
-            await membro.kick().catch(() => {});
-
-            return interaction.update({
-                embeds: [
-                    new EmbedBuilder()
-                        .setColor("Red")
-                        .setTitle("Registro Negado")
-                        .setDescription(`Usuário ${membro.user.tag} expulso`)
-                ],
-                components: []
-            });
+        } catch (e) {
+            console.log(e);
+            return interaction.reply({ content: "❌ Erro ao aprovar.", ephemeral: true });
         }
     }
 
+    // ======== NEGAR =========
+    if (acao === "negar") {
+        try {
+            await membro.kick("Registro negado pelo aprovador.");
+
+            const embedNegado = new EmbedBuilder()
+                .setColor("Red")
+                .setTitle("Registro Negado")
+                .setDescription(`❌ O usuário **${membro.user.tag}** foi expulso.\nNegado por: ${interaction.user}`)
+                .setThumbnail(membro.user.displayAvatarURL());
+
+            await interaction.update({ embeds: [embedNegado], components: [] });
+
+        } catch (e) {
+            console.log(e);
+            return interaction.reply({ content: "❌ Não foi possível expulsar o usuário.", ephemeral: true });
+        }
+    }
     // ====================== MODALS MOD ======================
     if (interaction.isModalSubmit()) {
 
