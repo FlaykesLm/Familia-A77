@@ -62,7 +62,6 @@ const warns = new Map();
 client.on("ready", async () => {
     console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-    // ====================== BAN PANEL ======================
     const canalBan = await client.channels.fetch(CANAL_BAN).catch(() => null);
 
     if (canalBan) {
@@ -81,7 +80,6 @@ client.on("ready", async () => {
         canalBan.send({ embeds: [embed], components: [row] });
     }
 
-    // ====================== CALL 24H ======================
     try {
         const canalVC = await client.channels.fetch(CALL_24H).catch(() => null);
 
@@ -105,7 +103,6 @@ client.on("ready", async () => {
         console.log("Erro VC:", err);
     }
 
-    // ====================== MOD PANEL ======================
     const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
 
     if (canalMod) {
@@ -131,61 +128,71 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.guild) return;
 
-    // 🔒 PERMISSÃO (não bloqueia registro nem modals internos)
+    // 🔒 PERMISSÃO
     if ((interaction.isButton() || interaction.isModalSubmit()) &&
         !interaction.customId.includes("Registro") &&
         !interaction.customId.includes("modalRegistro") &&
         !isStaff(interaction.member)
     ) {
-        return interaction.reply({
-            content: "❌ Sem permissão",
-            flags: 64
-        });
+        if (!interaction.replied && !interaction.deferred) {
+            return interaction.reply({
+                content: "❌ Sem permissão",
+                flags: 64
+            });
+        }
     }
 
     // ================= MODALS =================
-    if (interaction.customId === "ban_modal") {
-        const id = interaction.fields.getTextInputValue("id");
-        const motivo = interaction.fields.getTextInputValue("motivo");
+    if (interaction.isModalSubmit()) {
 
-        const member = await interaction.guild.members.fetch(id).catch(() => null);
-        if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
+        try {
+            if (interaction.customId === "ban_modal") {
+                const id = interaction.fields.getTextInputValue("id");
+                const motivo = interaction.fields.getTextInputValue("motivo");
 
-        await member.ban({ reason: motivo });
+                const member = await interaction.guild.members.fetch(id).catch(() => null);
+                if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
 
-        return interaction.reply({ content: "Ban aplicado!", flags: 64 });
+                await member.ban({ reason: motivo });
+
+                return interaction.reply({ content: "Ban aplicado!", flags: 64 });
+            }
+
+            if (interaction.customId === "unban_modal") {
+                const id = interaction.fields.getTextInputValue("id");
+                await interaction.guild.bans.remove(id).catch(() => {});
+
+                return interaction.reply({ content: "Unban aplicado!", flags: 64 });
+            }
+
+            if (interaction.customId === "kick_modal") {
+                const id = interaction.fields.getTextInputValue("id");
+                const motivo = interaction.fields.getTextInputValue("motivo");
+
+                const member = await interaction.guild.members.fetch(id).catch(() => null);
+                if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
+
+                await member.kick(motivo);
+
+                return interaction.reply({ content: "Kick aplicado!", flags: 64 });
+            }
+
+            if (interaction.customId === "warn_modal") {
+                const id = interaction.fields.getTextInputValue("id");
+                const motivo = interaction.fields.getTextInputValue("motivo");
+
+                if (!warns.has(id)) warns.set(id, []);
+                warns.get(id).push(motivo);
+
+                return interaction.reply({ content: "Warn aplicado!", flags: 64 });
+            }
+
+        } catch (err) {
+            console.log(err);
+        }
     }
 
-    if (interaction.customId === "unban_modal") {
-        const id = interaction.fields.getTextInputValue("id");
-        await interaction.guild.bans.remove(id).catch(() => {});
-
-        return interaction.reply({ content: "Unban aplicado!", flags: 64 });
-    }
-
-    if (interaction.customId === "kick_modal") {
-        const id = interaction.fields.getTextInputValue("id");
-        const motivo = interaction.fields.getTextInputValue("motivo");
-
-        const member = await interaction.guild.members.fetch(id).catch(() => null);
-        if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
-
-        await member.kick(motivo);
-
-        return interaction.reply({ content: "Kick aplicado!", flags: 64 });
-    }
-
-    if (interaction.customId === "warn_modal") {
-        const id = interaction.fields.getTextInputValue("id");
-        const motivo = interaction.fields.getTextInputValue("motivo");
-
-        if (!warns.has(id)) warns.set(id, []);
-        warns.get(id).push(motivo);
-
-        return interaction.reply({ content: "Warn aplicado!", flags: 64 });
-    }
-
-    // ================= BUTTON MODALS =================
+    // ================= BUTTONS =================
     if (interaction.isButton()) {
 
         const modal = (id, title, fields) => {
@@ -203,39 +210,39 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return m;
         };
 
-        if (interaction.customId === "ban") {
-            return interaction.showModal(modal("ban_modal", "Banir Usuário", [
+        if (interaction.customId === "ban") return interaction.showModal(
+            modal("ban_modal", "Banir Usuário", [
                 { id: "id", label: "ID", style: TextInputStyle.Short },
                 { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
-            ]));
-        }
+            ])
+        );
 
-        if (interaction.customId === "unban") {
-            return interaction.showModal(modal("unban_modal", "Desbanir Usuário", [
+        if (interaction.customId === "unban") return interaction.showModal(
+            modal("unban_modal", "Desbanir Usuário", [
                 { id: "id", label: "ID", style: TextInputStyle.Short }
-            ]));
-        }
+            ])
+        );
 
-        if (interaction.customId === "kick") {
-            return interaction.showModal(modal("kick_modal", "Kick Usuário", [
+        if (interaction.customId === "kick") return interaction.showModal(
+            modal("kick_modal", "Kick Usuário", [
                 { id: "id", label: "ID", style: TextInputStyle.Short },
                 { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
-            ]));
-        }
+            ])
+        );
 
-        if (interaction.customId === "warn") {
-            return interaction.showModal(modal("warn_modal", "Warn Usuário", [
+        if (interaction.customId === "warn") return interaction.showModal(
+            modal("warn_modal", "Warn Usuário", [
                 { id: "id", label: "ID", style: TextInputStyle.Short },
                 { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
-            ]));
-        }
+            ])
+        );
     }
 });
 
 // =========================================================
 // ====================== BOAS-VINDAS ======================
+// (MANTIDO EXATAMENTE COMO ESTAVA)
 // =========================================================
-// ====================== BOAS-VINDAS ======================
 client.on("guildMemberAdd", async (member) => {
     try {
 
