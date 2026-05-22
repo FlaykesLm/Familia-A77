@@ -69,7 +69,7 @@ client.on("ready", async () => {
     if (canal) {
 
         const embed = new EmbedBuilder()
-            .setTitle("Sistema Família Do7")
+            .setTitle("Sistema Família A7")
             .setDescription(
                 "Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!"
             )
@@ -100,8 +100,8 @@ client.on("ready", async () => {
     if (canalMod) {
 
         const embed = new EmbedBuilder()
-            .setTitle("🚫 Sistema de Moderação")
-            .setDescription("Painel de moderação")
+            .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
+            .setDescription("Ban : Banir Usuario Unban\n Unban : Remover\n Kick : Expulsar do Server\n warn : Adv - 3 Adv e Kick do server ")
             .setColor("Red");
 
         const row = new ActionRowBuilder().addComponents(
@@ -455,7 +455,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             const embedPunicao = new EmbedBuilder()
                 .setColor("Red")
-                .setTitle("🛡️ Sistema de Moderação")
+                .setTitle("🛡️ Moderação A7 ")
                 .addFields(
                     {
                         name: "👤 Usuário",
@@ -498,7 +498,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await interaction.guild.bans.remove(id).catch(() => {});
 
             return interaction.reply({
-                content: "✅ Unban aplicado!",
+                content: "✅ Ban Removido aplicado!",
                 ephemeral: true
             });
         }
@@ -529,7 +529,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             const embedPunicao = new EmbedBuilder()
                 .setColor("Orange")
-                .setTitle("🛡️ Sistema de Moderação")
+                .setTitle("🛡️ Moderação A7 ")
                 .addFields(
                     {
                         name: "👤 Usuário",
@@ -585,7 +585,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             const embedPunicao = new EmbedBuilder()
                 .setColor("Yellow")
-                .setTitle("🛡️ Sistema de Moderação")
+                .setTitle("🛡️ Moderação A7")
                 .addFields(
                     {
                         name: "👤 Usuário",
@@ -623,6 +623,82 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
+// ==================== BOT EM CALL 24H ====================
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
 
-// ====================== LOGIN ======================
+client.on("ready", async () => {
+    try {
+        const canal = client.channels.cache.get(process.env.CALL_24H);
+        if (!canal) return console.log("❌ Canal de voz não encontrado!");
+
+        const conexao = joinVoiceChannel({
+            channelId: canal.id,
+            guildId: canal.guild.id,
+            adapterCreator: canal.guild.voiceAdapterCreator,
+            selfDeaf: false
+        });
+
+        const player = createAudioPlayer();
+        const resource = createAudioResource("silencio.mp3");
+
+        player.play(resource);
+        conexao.subscribe(player);
+
+        console.log("🔊 Bot conectado em call 24h!");
+    } catch (err) {
+        console.log("Erro ao conectar no VC:", err);
+    }
+
+// ====================== BOAS-VINDAS ======================
+client.on("guildMemberAdd", async (member) => {
+    try {
+
+        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+
+        if (!canalBoasVindas)
+            return console.log("❌ Canal de boas-vindas não encontrado!");
+
+        const embed = new EmbedBuilder()
+            .setColor("#2b2d31")
+            .setTitle("🎉 Bem-vindo(a)!")
+            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: "Familia A7 ",
+                    value: `Você é o **${member.guild.memberCount}º** membro a entrar no servidor!`,
+                    inline: true
+                },
+                {
+                    name: "🏷️ Tag do Usuário",
+                    value: `\`${member.user.tag}\`\n(${member.id})`,
+                    inline: true
+                },
+                {
+                    name: "❓ Precisando de ajuda?",
+                    value: `Caso você tenha alguma dúvida ou problema, chame a equipe!`,
+                    inline: true
+                },
+                {
+                    name: "⚠️ Evite punições",
+                    value: `Leia as https://discord.com/channels/1408821123986231348/1505994371697217676 do servidor para evitar punições!`,
+                    inline: false
+                }
+            )
+            .setImage("https://i.imgur.com/ZV8ZK0A.png")
+            .setFooter({
+                text: "Todos os direitos reservados."
+            })
+            .setTimestamp();
+
+        await canalBoasVindas.send({
+            content: `🎉 ${member}`,
+            embeds: [embed]
+        });
+
+    } catch (err) {
+        console.log("Erro na mensagem de boas-vindas:", err);
+    }
+});
+
 client.login(TOKEN);
