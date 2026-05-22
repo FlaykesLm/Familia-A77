@@ -23,6 +23,13 @@ const {
     PermissionsBitField
 } = require("discord.js");
 
+// ====================== VOICE ======================
+const {
+    joinVoiceChannel,
+    createAudioPlayer,
+    createAudioResource
+} = require("@discordjs/voice");
+
 // ====================== CLIENT ======================
 const client = new Client({
     intents: [
@@ -94,54 +101,85 @@ client.on("ready", async () => {
         console.log("📩 Painel enviado!");
     }
 
-   // ================= MOD PANEL =================
-const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
+    // ================= MOD PANEL =================
+    const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
 
-if (canalMod) {
+    if (canalMod) {
 
-    const embed = new EmbedBuilder()
-        .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
-        .setDescription("Ban : Banir Usuario Unban\n Unban : Remover\n Kick : Expulsar do Server\n warn : Adv - 3 Adv e Kick do server ")
-        .setColor("Red");
+        const embed = new EmbedBuilder()
+            .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
+            .setDescription("Ban : Banir Usuario\nUnban : Remover\nKick : Expulsar do Server\nWarn : Adv - 3 Adv e Kick do server")
+            .setColor("Red");
 
-    const row = new ActionRowBuilder().addComponents(
+        const row = new ActionRowBuilder().addComponents(
 
-        new ButtonBuilder()
-            .setCustomId("ban")
-            .setLabel("Ban")
-            .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId("ban")
+                .setLabel("Ban")
+                .setStyle(ButtonStyle.Danger),
 
-        new ButtonBuilder()
-            .setCustomId("unban")
-            .setLabel("Unban")
-            .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId("unban")
+                .setLabel("Unban")
+                .setStyle(ButtonStyle.Success),
 
-        new ButtonBuilder()
-            .setCustomId("kick")
-            .setLabel("Kick")
-            .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId("kick")
+                .setLabel("Kick")
+                .setStyle(ButtonStyle.Secondary),
 
-        new ButtonBuilder()
-            .setCustomId("warn")
-            .setLabel("Warn")
-            .setStyle(ButtonStyle.Primary)
-    );
+            new ButtonBuilder()
+                .setCustomId("warn")
+                .setLabel("Warn")
+                .setStyle(ButtonStyle.Primary)
+        );
 
-    await canalMod.send({
-        embeds: [embed],
-        components: [row]
-    });
-}
+        await canalMod.send({
+            embeds: [embed],
+            components: [row]
+        });
+
+        console.log("🛡️ Painel mod enviado!");
+    }
+
+    // ==================== BOT EM CALL 24H ====================
+    try {
+
+        const canalVoice = client.channels.cache.get(process.env.CALL_24H);
+
+        if (!canalVoice) {
+            return console.log("❌ Canal de voz não encontrado!");
+        }
+
+        const conexao = joinVoiceChannel({
+            channelId: canalVoice.id,
+            guildId: canalVoice.guild.id,
+            adapterCreator: canalVoice.guild.voiceAdapterCreator,
+            selfDeaf: false
+        });
+
+        const player = createAudioPlayer();
+        const resource = createAudioResource("silencio.mp3");
+
+        player.play(resource);
+        conexao.subscribe(player);
+
+        console.log("🔊 Bot conectado em call 24h!");
+
+    } catch (err) {
+
+        console.log("Erro ao conectar no VC:", err);
+    }
+});
+
 // =========================================================
-// ====================== INTERACTIONS ======================
+// ====================== INTERACTIONS =====================
 // =========================================================
 client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.guild) return;
 
-    // =====================================================
-    // ====================== ABRIR MODAL ==================
-    // =====================================================
+    // ====================== ABRIR MODAL ======================
     if (interaction.isButton() && interaction.customId === "abrirRegistro") {
 
         const modal = new ModalBuilder()
@@ -168,9 +206,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.showModal(modal);
     }
 
-    // =====================================================
-    // ====================== RECEBER FORM =================
-    // =====================================================
+    // ====================== RECEBER FORM ======================
     if (interaction.isModalSubmit() && interaction.customId === "modalRegistro") {
 
         const nome = interaction.fields.getTextInputValue("nome");
@@ -216,9 +252,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
     }
 
-    // =====================================================
-    // ====================== APROVAR / NEGAR ==============
-    // =====================================================
+    // ====================== APROVAR / NEGAR ======================
     if (interaction.isButton()) {
 
         const [acao, userId] = interaction.customId.split("_");
@@ -325,9 +359,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 
-    // =====================================================
-    // ====================== BOTÕES MOD ===================
-    // =====================================================
+    // ====================== BOTÕES MOD ======================
     if (interaction.isButton()) {
 
         const criarModal = (id, title, fields) => {
@@ -422,9 +454,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 
-    // =====================================================
-    // ====================== MODALS MOD ===================
-    // =====================================================
+    // ====================== MODALS MOD ======================
     if (interaction.isModalSubmit()) {
 
         // ================= BAN =================
@@ -444,7 +474,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             await member.ban({ reason: motivo });
 
-            // ===== LOG =====
             const canalPunicoes = await client.channels.fetch(CANAL_PUNICOES);
 
             const hora = new Date().toLocaleString("pt-BR", {
@@ -496,7 +525,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await interaction.guild.bans.remove(id).catch(() => {});
 
             return interaction.reply({
-                content: "✅ Ban Removido aplicado!",
+                content: "✅ Ban removido!",
                 ephemeral: true
             });
         }
@@ -518,44 +547,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             await member.kick(motivo);
 
-            // ===== LOG =====
-            const canalPunicoes = await client.channels.fetch(CANAL_PUNICOES);
-
-            const hora = new Date().toLocaleString("pt-BR", {
-                timeZone: "America/Sao_Paulo"
-            });
-
-            const embedPunicao = new EmbedBuilder()
-                .setColor("Orange")
-                .setTitle("🛡️ Moderação A7 ")
-                .addFields(
-                    {
-                        name: "👤 Usuário",
-                        value: `${member.user}`,
-                    },
-                    {
-                        name: "📌 Punição",
-                        value: "Kick",
-                    },
-                    {
-                        name: "📝 Motivo",
-                        value: motivo,
-                    },
-                    {
-                        name: "🕒 Data e Hora",
-                        value: hora,
-                    },
-                    {
-                        name: "🛡️ Quem aplicou",
-                        value: `${interaction.user}`,
-                    }
-                )
-                .setThumbnail(member.user.displayAvatarURL());
-
-            await canalPunicoes.send({
-                embeds: [embedPunicao]
-            });
-
             return interaction.reply({
                 content: "✅ Kick aplicado!",
                 ephemeral: true
@@ -572,85 +563,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             warns.get(id).push(motivo);
 
-            const membroWarn = await interaction.guild.members.fetch(id).catch(() => null);
-
-            // ===== LOG =====
-            const canalPunicoes = await client.channels.fetch(CANAL_PUNICOES);
-
-            const hora = new Date().toLocaleString("pt-BR", {
-                timeZone: "America/Sao_Paulo"
-            });
-
-            const embedPunicao = new EmbedBuilder()
-                .setColor("Yellow")
-                .setTitle("🛡️ Moderação A7")
-                .addFields(
-                    {
-                        name: "👤 Usuário",
-                        value: `${membroWarn || id}`,
-                    },
-                    {
-                        name: "📌 Punição",
-                        value: "Warn",
-                    },
-                    {
-                        name: "📝 Motivo",
-                        value: motivo,
-                    },
-                    {
-                        name: "🕒 Data e Hora",
-                        value: hora,
-                    },
-                    {
-                        name: "🛡️ Quem aplicou",
-                        value: `${interaction.user}`,
-                    }
-                )
-                .setThumbnail(
-                    membroWarn?.user.displayAvatarURL() || null
-                );
-
-          ```js
-            await canalPunicoes.send({
-                embeds: [embedPunicao]
-            });
-
             return interaction.reply({
                 content: "✅ Warn aplicado!",
                 ephemeral: true
             });
         }
-    }
-});
-
-// ==================== BOT EM CALL 24H ====================
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
-
-client.on("ready", async () => {
-    try {
-        const canal = client.channels.cache.get(process.env.CALL_24H);
-
-        if (!canal)
-            return console.log("❌ Canal de voz não encontrado!");
-
-        const conexao = joinVoiceChannel({
-            channelId: canal.id,
-            guildId: canal.guild.id,
-            adapterCreator: canal.guild.voiceAdapterCreator,
-            selfDeaf: false
-        });
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource("silencio.mp3");
-
-        player.play(resource);
-        conexao.subscribe(player);
-
-        console.log("🔊 Bot conectado em call 24h!");
-
-    } catch (err) {
-
-        console.log("Erro ao conectar no VC:", err);
     }
 });
 
@@ -689,11 +606,11 @@ client.on("guildMemberAdd", async (member) => {
                 },
                 {
                     name: "⚠️ Evite punições",
-                    value: `Leia as regras do servidor para evitar punições!`,
+                    value: "Leia as regras do servidor para evitar punições!",
                     inline: false
                 }
             )
-            .setImage("https://i.imgur.com/ZV8ZK0A.png")
+            .setImage("https://cdn.discordapp.com/attachments/1401678843311427594/1506808671923994766/standard.gif?ex=6a1196ae&is=6a10452e&hm=93c394709ee1105e93eb4fb377a6a0a6e9db72cbbf98bb48037d3f5b2e2cb564&")
             .setFooter({
                 text: "Todos os direitos reservados."
             })
