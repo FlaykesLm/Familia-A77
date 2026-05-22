@@ -610,6 +610,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     membroWarn?.user.displayAvatarURL() || null
                 );
 
+          ```js
             await canalPunicoes.send({
                 embeds: [embedPunicao]
             });
@@ -617,16 +618,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
             return interaction.reply({
                 content: "✅ Warn aplicado!",
                 ephemeral: true
+            });
         }
     }
 });
+
 // ==================== BOT EM CALL 24H ====================
 const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
 
 client.on("ready", async () => {
     try {
         const canal = client.channels.cache.get(process.env.CALL_24H);
-        if (!canal) return console.log("❌ Canal de voz não encontrado!");
+
+        if (!canal)
+            return console.log("❌ Canal de voz não encontrado!");
 
         const conexao = joinVoiceChannel({
             channelId: canal.id,
@@ -642,7 +647,9 @@ client.on("ready", async () => {
         conexao.subscribe(player);
 
         console.log("🔊 Bot conectado em call 24h!");
-        } catch (err) {
+
+    } catch (err) {
+
         console.log("Erro ao conectar no VC:", err);
     }
 });
