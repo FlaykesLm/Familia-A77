@@ -305,6 +305,76 @@ client.on("guildMemberAdd", async (member) => {
         console.log("Erro na mensagem de boas-vindas:", err);
     }
 });
+// ====================== ENTRADA ======================
+client.on("guildMemberAdd", async (member) => {
+    try {
+        const canal = member.guild.channels.cache.get(process.env.CANAL_ENTROU);
+        if (!canal) return;
 
-// ====================== LOGIN ======================
+        const embed = new EmbedBuilder()
+            .setColor("#2ecc71")
+            .setTitle("📥 Novo membro entrou!")
+            .setDescription(`👋 Bem-vindo(a) ${member}!`)
+            .addFields(
+                {
+                    name: "👤 Usuário",
+                    value: `${member.user.tag}`,
+                    inline: true
+                },
+                {
+                    name: "🆔 ID",
+                    value: `${member.id}`,
+                    inline: true
+                },
+                {
+                    name: "📊 Membros no servidor",
+                    value: `${member.guild.memberCount}`,
+                    inline: true
+                }
+            )
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 1024 }))
+            .setImage(member.user.displayAvatarURL({ dynamic: true, size: 1024 }))
+            .setFooter({ text: "Sistema de boas-vindas" })
+            .setTimestamp();
+
+        canal.send({ embeds: [embed] });
+
+    } catch (err) {
+        console.log("Erro no sistema de entrada:", err);
+    }
+});
+
+// ====================== SAÍDA ======================
+client.on("guildMemberRemove", async (member) => {
+    try {
+        const canal = member.guild.channels.cache.get(process.env.CANAL_SAIU);
+        if (!canal) return;
+
+        const embed = new EmbedBuilder()
+            .setColor("#e74c3c")
+            .setTitle("📤 Membro saiu!")
+            .setDescription(`😢 **${member.user?.tag || "Usuário"}** saiu do servidor`)
+            .addFields(
+                {
+                    name: "🆔 ID",
+                    value: `${member.id}`,
+                    inline: true
+                },
+                {
+                    name: "📊 Membros restantes",
+                    value: `${member.guild.memberCount}`,
+                    inline: true
+                }
+            )
+            .setThumbnail(member.user?.displayAvatarURL({ dynamic: true, size: 1024 }) || null)
+            .setImage(member.user?.displayAvatarURL({ dynamic: true, size: 1024 }) || null)
+            .setFooter({ text: "Sistema de logs" })
+            .setTimestamp();
+
+        canal.send({ embeds: [embed] });
+
+    } catch (err) {
+        console.log("Erro no sistema de saída:", err);
+    }
+});
 client.login(TOKEN);
