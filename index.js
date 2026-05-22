@@ -650,12 +650,15 @@ client.on("ready", async () => {
 
 // ====================== BOAS-VINDAS ======================
 client.on("guildMemberAdd", async (member) => {
+
     try {
 
-        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+        const canalBoasVindas =
+            member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
 
-        if (!canalBoasVindas)
+        if (!canalBoasVindas) {
             return console.log("❌ Canal de boas-vindas não encontrado!");
+        }
 
         const embed = new EmbedBuilder()
             .setColor("#2b2d31")
@@ -664,7 +667,7 @@ client.on("guildMemberAdd", async (member) => {
             .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
             .addFields(
                 {
-                    name: "Familia A7 ",
+                    name: "Familia A7",
                     value: `Você é o **${member.guild.memberCount}º** membro a entrar no servidor!`,
                     inline: true
                 },
@@ -680,7 +683,7 @@ client.on("guildMemberAdd", async (member) => {
                 },
                 {
                     name: "⚠️ Evite punições",
-                    value: `Leia as https://discord.com/channels/1408821123986231348/1505994371697217676 do servidor para evitar punições!`,
+                    value: `Leia as regras do servidor para evitar punições!`,
                     inline: false
                 }
             )
@@ -696,6 +699,7 @@ client.on("guildMemberAdd", async (member) => {
         });
 
     } catch (err) {
+
         console.log("Erro na mensagem de boas-vindas:", err);
     }
 });
