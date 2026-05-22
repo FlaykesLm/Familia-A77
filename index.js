@@ -23,6 +23,8 @@ const {
     PermissionsBitField
 } = require("discord.js");
 
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -32,28 +34,35 @@ const client = new Client({
     ],
 });
 
-// ====================== VARIÁVEIS DO .ENV =================
+// ====================== ENV ======================
 const CANAL_PEDIR_SET = process.env.CANAL_PEDIR_SET;
 const CANAL_ACEITA_SET = process.env.CANAL_ACEITA_SET;
 const CARGO_APROVADO = process.env.CARGO_APROVADO;
 const CARGO_APROVADO_2 = process.env.CARGO_APROVADO_2;
+
+const CANAL_BAN = process.env.CANAL_BAN;
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+
 const TOKEN = process.env.TOKEN;
+
+// ====================== FUNÇÃO STAFF ======================
+function isStaff(member) {
+    return (
+        member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+        member.roles.cache.has(STAFF_ROLE_ID)
+    );
+}
 
 // ====================== BOT ONLINE ========================
 client.on("ready", async () => {
     console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
+    // ===== SISTEMA A7 =====
     const canal = await client.channels.fetch(CANAL_PEDIR_SET);
 
     const embed = new EmbedBuilder()
         .setTitle("Sistema Família A7")
-        .setDescription(
-            "Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!"
-        )
-        .addFields({
-            name: "📌 Lembretes",
-            value: "• A resenha aqui é garantida.\n• Não leve tudo a sério.",
-        })
+        .setDescription("Registro A7.\n\nSolicite SET usando o botão abaixo.")
         .setColor("#f1c40f");
 
     const btn = new ActionRowBuilder().addComponents(
@@ -64,78 +73,118 @@ client.on("ready", async () => {
     );
 
     await canal.send({ embeds: [embed], components: [btn] });
-    console.log("📩 Mensagem de registro enviada!");
-});
 
-// ====================== ABRIR MODAL ========================
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isButton()) return;
-    if (interaction.customId !== "abrirRegistro") return;
+    // ===== PAINEL BAN =====
+    const canalBan = await client.channels.fetch(CANAL_BAN).catch(() => null);
 
-    const modal = new ModalBuilder()
-        .setCustomId("modalRegistro")
-        .setTitle("Solicitação de Set");
+    if (canalBan) {
+        const painel = new EmbedBuilder()
+            .setTitle("🚫 Sistema de Moderação")
+            .setDescription("Use os botões para banir ou desbanir usuários.")
+            .setColor("Red");
 
-    const nome = new TextInputBuilder()
-        .setCustomId("nome")
-        .setLabel("Seu nome*")
-        .setRequired(true)
-        .setStyle(TextInputStyle.Short);
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("ban_open")
+                .setLabel("Banir usuário")
+                .setStyle(ButtonStyle.Danger),
 
-    const id = new TextInputBuilder()
-        .setCustomId("iduser")
-        .setLabel("Seu ID*")
-        .setRequired(true)
-        .setStyle(TextInputStyle.Short);
-
-    modal.addComponents(
-        new ActionRowBuilder().addComponents(nome),
-        new ActionRowBuilder().addComponents(id)
-    );
-
-    await interaction.showModal(modal);
-});
-
-// ====================== RECEBER FORM ========================
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isModalSubmit()) return;
-    if (interaction.customId !== "modalRegistro") return;
-
-    const nome = interaction.fields.getTextInputValue("nome");
-    const iduser = interaction.fields.getTextInputValue("iduser");
-    const canal = await client.channels.fetch(CANAL_ACEITA_SET);
-
-    const embed = new EmbedBuilder()
-        .setTitle("Novo Pedido de Registro")
-        .setColor("#3498db")
-        .setThumbnail(interaction.user.displayAvatarURL())
-        .addFields(
-            { name: "Usuário", value: `${interaction.user}` },
-            { name: "Nome Informado", value: nome },
-            { name: "ID Informado", value: iduser },
-            {
-                name: "Conta Criada em",
-                value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`,
-            }
+            new ButtonBuilder()
+                .setCustomId("unban_open")
+                .setLabel("Desbanir usuário")
+                .setStyle(ButtonStyle.Success)
         );
 
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`aprovar_${interaction.user.id}`)
-            .setLabel("Aprovar")
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId(`negar_${interaction.user.id}`)
-            .setLabel("Negar")
-            .setStyle(ButtonStyle.Danger)
-    );
+        canalBan.send({ embeds: [painel], components: [row] });
+    }
 
-    await canal.send({ embeds: [embed], components: [row] });
-    await interaction.reply({ content: "Seu pedido foi enviado!", ephemeral: true });
+    // ===== CALL 24H =====
+    try {
+        const canalVC = client.channels.cache.get(process.env.CALL_24H);
+
+        if (canalVC) {
+            const conexao = joinVoiceChannel({
+                channelId: canalVC.id,
+                guildId: canalVC.guild.id,
+                adapterCreator: canalVC.guild.voiceAdapterCreator,
+                selfDeaf: false
+            });
+
+            const player = createAudioPlayer();
+            const resource = createAudioResource("silencio.mp3");
+
+            player.play(resource);
+            conexao.subscribe(player);
+
+            console.log("🔊 Bot conectado em call 24h!");
+        }
+    } catch (err) {
+        console.log("Erro VC:", err);
+    }
 });
 
-// =================== APROVAR / NEGAR ===================
+// ====================== REGISTRO A7 ======================
 client.on(Events.InteractionCreate, async (interaction) => {
+
+    if (interaction.isButton() && interaction.customId === "abrirRegistro") {
+
+        const modal = new ModalBuilder()
+            .setCustomId("modalRegistro")
+            .setTitle("Solicitação de Set");
+
+        const nome = new TextInputBuilder()
+            .setCustomId("nome")
+            .setLabel("Seu nome")
+            .setStyle(TextInputStyle.Short);
+
+        const id = new TextInputBuilder()
+            .setCustomId("iduser")
+            .setLabel("Seu ID")
+            .setStyle(TextInputStyle.Short);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(nome),
+            new ActionRowBuilder().addComponents(id)
+        );
+
+        return interaction.showModal(modal);
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === "modalRegistro") {
+
+        const nome = interaction.fields.getTextInputValue("nome");
+        const iduser = interaction.fields.getTextInputValue("iduser");
+
+        const canal = await client.channels.fetch(CANAL_ACEITA_SET);
+
+        const embed = new EmbedBuilder()
+            .setTitle("Novo Pedido de Registro")
+            .setColor("#3498db")
+            .addFields(
+                { name: "Usuário", value: `${interaction.user}` },
+                { name: "Nome", value: nome },
+                { name: "ID", value: iduser }
+            );
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`aprovar_${interaction.user.id}`)
+                .setLabel("Aprovar")
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId(`negar_${interaction.user.id}`)
+                .setLabel("Negar")
+                .setStyle(ButtonStyle.Danger)
+        );
+
+        await canal.send({ embeds: [embed], components: [row] });
+        await interaction.reply({ content: "Enviado!", ephemeral: true });
+    }
+});
+
+// ====================== APROVAR / NEGAR ======================
+client.on(Events.InteractionCreate, async (interaction) => {
+
     if (!interaction.isButton()) return;
 
     const [acao, userId] = interaction.customId.split("_");
@@ -144,237 +193,160 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const membro = await interaction.guild.members.fetch(userId);
     const embedOriginal = interaction.message.embeds[0];
 
-    const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
-    const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
+    const nome = embedOriginal.fields.find(f => f.name === "Nome")?.value;
 
     if (acao === "aprovar") {
-        try {
-            await membro.setNickname(`A7 ${nomeInformado}`);
-            await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
+        await membro.setNickname(`A7 ${nome}`);
+        await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
 
-            const mensagem = `<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7 ** <:emojia7:1429141492080967730>
-
-** Parabéns! Agora vc e um membro oficial da Family A7 ,
-Seu set foi aceito , um lugar onde a vibe é diferente,
-A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu próprio jeito... **
-
-✨ **Seja muito bem-vindo!** ✨**`;
-
-            await membro.send(mensagem).catch(() => {});
-
-            const embedAprovado = new EmbedBuilder()
-                .setColor("Green")
-                .setTitle("Registro Aprovado")
-                .addFields(
-                    { name: "👤 Usuário:", value: `${membro}` },
-                    { name: "🪪 ID:", value: `${idInformado}` },
-                    { name: "📛 Nome Informado:", value: `A7 ${nomeInformado}` },
-                    { name: "🧭 Acesso aprovado por:", value: `${interaction.user}` }
-                )
-                .setThumbnail(membro.user.displayAvatarURL())
-                .setFooter({ text: "Aprovado com sucesso!" });
-
-            await interaction.update({ embeds: [embedAprovado], components: [] });
-
-        } catch (e) {
-            console.log(e);
-            return interaction.reply({ content: "❌ Erro ao aprovar.", ephemeral: true });
-        }
+        await interaction.update({
+            content: "Aprovado!",
+            embeds: [],
+            components: []
+        });
     }
 
     if (acao === "negar") {
-        try {
-            await membro.kick("Registro negado pelo aprovador.");
+        await membro.kick("Negado");
 
-            const embedNegado = new EmbedBuilder()
-                .setColor("Red")
-                .setTitle("Registro Negado")
-                .setDescription(`❌ O usuário **${membro.user.tag}** foi expulso.\nNegado por: ${interaction.user}`)
-                .setThumbnail(membro.user.displayAvatarURL());
-
-            await interaction.update({ embeds: [embedNegado], components: [] });
-
-        } catch (e) {
-            console.log(e);
-            return interaction.reply({ content: "❌ Não foi possível expulsar o usuário.", ephemeral: true });
-        }
+        await interaction.update({
+            content: "Negado!",
+            embeds: [],
+            components: []
+        });
     }
 });
 
-// =================== PV PARA TODOS ===================
+// ====================== PVALL ======================
 client.on("messageCreate", async (message) => {
+
     if (!message.content.startsWith("!pvall")) return;
 
     if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return message.reply("❌ Você não tem permissão!");
+        return message.reply("Sem permissão!");
     }
 
     const texto = message.content.split(" ").slice(1).join(" ");
-    if (!texto) return message.reply("⚠️ Escreva uma mensagem!");
 
     const members = await message.guild.members.fetch();
 
-    message.reply(`📨 Enviando mensagem para **${members.size} membros**...`);
-
     let enviados = 0;
-    let falhou = 0;
 
     members.forEach(m => {
-        if (m.user.bot) return;
-
-        m.send(`📩 **Família A7:**\n${texto}`)
-            .then(() => enviados++)
-            .catch(() => falhou++);
+        if (!m.user.bot) {
+            m.send(texto).then(() => enviados++).catch(() => {});
+        }
     });
 
-    setTimeout(() => {
-        message.channel.send(
-            `✔️ Mensagens enviadas para **${enviados} membros**.\n⚠️ Falhou em **${falhou} membros**.`
+    message.reply("Enviado para membros!");
+});
+
+// ====================== BAN SYSTEM ======================
+client.on(Events.InteractionCreate, async (interaction) => {
+
+    if (!interaction.guild) return;
+
+    if ((interaction.isButton() || interaction.isModalSubmit()) && !isStaff(interaction.member)) {
+        return interaction.reply({ content: "Sem permissão.", ephemeral: true });
+    }
+
+    // BAN OPEN
+    if (interaction.isButton() && interaction.customId === "ban_open") {
+
+        const modal = new ModalBuilder()
+            .setCustomId("ban_modal")
+            .setTitle("Banir Usuário");
+
+        const user = new TextInputBuilder()
+            .setCustomId("user")
+            .setLabel("ID do usuário")
+            .setStyle(TextInputStyle.Short);
+
+        const reason = new TextInputBuilder()
+            .setCustomId("reason")
+            .setLabel("Motivo")
+            .setStyle(TextInputStyle.Paragraph);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(user),
+            new ActionRowBuilder().addComponents(reason)
         );
-    }, 5000);
-});
 
-// ==================== BOT EM CALL 24H ====================
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
+        return interaction.showModal(modal);
+    }
 
-client.on("ready", async () => {
-    try {
-        const canal = client.channels.cache.get(process.env.CALL_24H);
+    // UNBAN OPEN
+    if (interaction.isButton() && interaction.customId === "unban_open") {
 
-        if (!canal) return console.log("❌ Canal de voz não encontrado!");
+        const modal = new ModalBuilder()
+            .setCustomId("unban_modal")
+            .setTitle("Desbanir Usuário");
 
-        const conexao = joinVoiceChannel({
-            channelId: canal.id,
-            guildId: canal.guild.id,
-            adapterCreator: canal.guild.voiceAdapterCreator,
-            selfDeaf: false
-        });
+        const user = new TextInputBuilder()
+            .setCustomId("user")
+            .setLabel("ID do usuário")
+            .setStyle(TextInputStyle.Short);
 
-        const player = createAudioPlayer();
-        const resource = createAudioResource("silencio.mp3");
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(user)
+        );
 
-        player.play(resource);
-        conexao.subscribe(player);
+        return interaction.showModal(modal);
+    }
 
-        console.log("🔊 Bot conectado em call 24h!");
+    // BAN
+    if (interaction.isModalSubmit() && interaction.customId === "ban_modal") {
 
-    } catch (err) {
-        console.log("Erro ao conectar no VC:", err);
+        const userId = interaction.fields.getTextInputValue("user");
+        const reason = interaction.fields.getTextInputValue("reason");
+
+        const embed = new EmbedBuilder()
+            .setTitle("🚫 Usuário Banido")
+            .addFields(
+                { name: "Usuário", value: `<@${userId}>` },
+                { name: "Motivo", value: reason },
+                { name: "Staff", value: `<@${interaction.user.id}>` }
+            )
+            .setColor("DarkRed");
+
+        await interaction.reply({ content: "Ban registrado!", ephemeral: true });
+
+        const canal = await client.channels.fetch(CANAL_BAN);
+        canal?.send({ embeds: [embed] });
+    }
+
+    // UNBAN
+    if (interaction.isModalSubmit() && interaction.customId === "unban_modal") {
+
+        const userId = interaction.fields.getTextInputValue("user");
+
+        const embed = new EmbedBuilder()
+            .setTitle("✅ Usuário Desbanido")
+            .addFields(
+                { name: "Usuário", value: `<@${userId}>` },
+                { name: "Staff", value: `<@${interaction.user.id}>` }
+            )
+            .setColor("Green");
+
+        await interaction.reply({ content: "Desban registrado!", ephemeral: true });
+
+        const canal = await client.channels.fetch(CANAL_BAN);
+        canal?.send({ embeds: [embed] });
     }
 });
 
-// ====================== BOAS-VINDAS ======================
+// ====================== BOAS VINDAS ======================
 client.on("guildMemberAdd", async (member) => {
-    try {
 
-        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+    const canal = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+    if (!canal) return;
 
-        if (!canalBoasVindas)
-            return console.log("❌ Canal de boas-vindas não encontrado!");
+    const embed = new EmbedBuilder()
+        .setTitle("Bem-vindo!")
+        .setDescription(`Olá ${member}`)
+        .setColor("Blue");
 
-        const embed = new EmbedBuilder()
-            .setColor("#2b2d31")
-            .setTitle("🎉 Bem-vindo(a)!")
-            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-            .addFields(
-                {
-                    name: "💡 Sabia que...",
-                    value: `Você é o Nosso **${member.guild.memberCount}º** membro!`,
-                    inline: true
-                },
-                {
-                    name: "🏷️ Tag do Usuário",
-                    value: `\`${member.user.tag}\`\n(${member.id})`,
-                    inline: true
-                },
-                {
-                    name: "❓ Precisando de ajuda?",
-                    value: `Fale com um <@&1439068773112873114>`,
-                    inline: true
-                }
-            )
-            .setTimestamp();
-
-        await canalBoasVindas.send({
-            content: `🎉 ${member}`,
-            embeds: [embed]
-        });
-
-    } catch (err) {
-        console.log("Erro na mensagem de boas-vindas:", err);
-    }
-});
-// ====================== ENTRADA ======================
-client.on("guildMemberAdd", async (member) => {
-    try {
-        const canal = member.guild.channels.cache.get(process.env.CANAL_ENTROU);
-        if (!canal) return;
-
-        const embed = new EmbedBuilder()
-            .setColor("#2ecc71")
-            .setTitle("📥 Novo membro entrou!")
-            .setDescription(`👋 Bem-vindo(a) ${member}!`)
-            .addFields(
-                {
-                    name: "👤 Usuário",
-                    value: `${member.user.tag}`,
-                    inline: true
-                },
-                {
-                    name: "🆔 ID",
-                    value: `${member.id}`,
-                    inline: true
-                },
-                {
-                    name: "📊 Membros no servidor",
-                    value: `${member.guild.memberCount}`,
-                    inline: true
-                }
-            )
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 1024 }))
-            .setImage(member.user.displayAvatarURL({ dynamic: true, size: 1024 }))
-            .setFooter({ text: "Sistema de boas-vindas" })
-            .setTimestamp();
-
-        canal.send({ embeds: [embed] });
-
-    } catch (err) {
-        console.log("Erro no sistema de entrada:", err);
-    }
+    canal.send({ embeds: [embed] });
 });
 
-// ====================== SAÍDA ======================
-client.on("guildMemberRemove", async (member) => {
-    try {
-        const canal = member.guild.channels.cache.get(process.env.CANAL_SAIU);
-        if (!canal) return;
-
-        const embed = new EmbedBuilder()
-            .setColor("#e74c3c")
-            .setTitle("📤 Membro saiu!")
-            .setDescription(`😢 **${member.user?.tag || "Usuário"}** saiu do servidor`)
-            .addFields(
-                {
-                    name: "🆔 ID",
-                    value: `${member.id}`,
-                    inline: true
-                },
-                {
-                    name: "📊 Membros restantes",
-                    value: `${member.guild.memberCount}`,
-                    inline: true
-                }
-            )
-            .setThumbnail(member.user?.displayAvatarURL({ dynamic: true, size: 1024 }) || null)
-            .setImage(member.user?.displayAvatarURL({ dynamic: true, size: 1024 }) || null)
-            .setFooter({ text: "Sistema de logs" })
-            .setTimestamp();
-
-        canal.send({ embeds: [embed] });
-
-    } catch (err) {
-        console.log("Erro no sistema de saída:", err);
-    }
-});
 client.login(TOKEN);
