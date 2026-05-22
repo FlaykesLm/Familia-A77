@@ -94,46 +94,44 @@ client.on("ready", async () => {
         console.log("📩 Painel enviado!");
     }
 
-    // ================= MOD PANEL =================
-    const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
+   // ================= MOD PANEL =================
+const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
 
-    if (canalMod) {
+if (canalMod) {
 
-        const embed = new EmbedBuilder()
-            .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
-            .setDescription("Ban : Banir Usuario Unban\n Unban : Remover\n Kick : Expulsar do Server\n warn : Adv - 3 Adv e Kick do server ")
-            .setColor("Red");
+    const embed = new EmbedBuilder()
+        .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
+        .setDescription("Ban : Banir Usuario Unban\n Unban : Remover\n Kick : Expulsar do Server\n warn : Adv - 3 Adv e Kick do server ")
+        .setColor("Red");
 
-        const row = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder().addComponents(
 
-            new ButtonBuilder()
-                .setCustomId("ban")
-                .setLabel("Ban")
-                .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+            .setCustomId("ban")
+            .setLabel("Ban")
+            .setStyle(ButtonStyle.Danger),
 
-            new ButtonBuilder()
-                .setCustomId("unban")
-                .setLabel("Unban")
-                .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId("unban")
+            .setLabel("Unban")
+            .setStyle(ButtonStyle.Success),
 
-            new ButtonBuilder()
-                .setCustomId("kick")
-                .setLabel("Kick")
-                .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId("kick")
+            .setLabel("Kick")
+            .setStyle(ButtonStyle.Secondary),
 
-            new ButtonBuilder()
-                .setCustomId("warn")
-                .setLabel("Warn")
-                .setStyle(ButtonStyle.Primary)
-        );
+        new ButtonBuilder()
+            .setCustomId("warn")
+            .setLabel("Warn")
+            .setStyle(ButtonStyle.Primary)
+    );
 
-        await canalMod.send({
-            embeds: [embed],
-            components: [row]
-        });
-    }
-});
-
+    await canalMod.send({
+        embeds: [embed],
+        components: [row]
+    });
+}
 // =========================================================
 // ====================== INTERACTIONS ======================
 // =========================================================
