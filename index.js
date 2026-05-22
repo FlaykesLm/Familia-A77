@@ -23,8 +23,6 @@ const {
     PermissionsBitField
 } = require("discord.js");
 
-const { joinVoiceChannel } = require("@discordjs/voice");
-
 // ====================== CLIENT ======================
 const client = new Client({
     intents: [
@@ -41,11 +39,9 @@ const {
     CANAL_ACEITA_SET,
     CARGO_APROVADO,
     CARGO_APROVADO_2,
-    CANAL_BAN,
     STAFF_ROLE_ID,
     CANAL_MOD,
-    CALL_24H,
-    CANAL_BOAS_VINDAS,
+    CANAL_PUNICOES,
     TOKEN
 } = process.env;
 
@@ -64,12 +60,14 @@ function isStaff(member) {
 // ====================== READY ============================
 // =========================================================
 client.on("ready", async () => {
+
     console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-    // ===== SET PANEL =====
+    // ================= SET PANEL =================
     const canal = await client.channels.fetch(CANAL_PEDIR_SET).catch(() => null);
 
     if (canal) {
+
         const embed = new EmbedBuilder()
             .setTitle("Sistema Família Do7")
             .setDescription(
@@ -88,19 +86,26 @@ client.on("ready", async () => {
                 .setStyle(ButtonStyle.Primary)
         );
 
-        await canal.send({ embeds: [embed], components: [btn] });
-        console.log("📩 Mensagem de registro enviada!");
+        await canal.send({
+            embeds: [embed],
+            components: [btn]
+        });
+
+        console.log("📩 Painel enviado!");
     }
 
-    // ===== MOD PANEL =====
+    // ================= MOD PANEL =================
     const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
 
     if (canalMod) {
+
         const embed = new EmbedBuilder()
-            .setTitle("🛡️ Painel de Moderação")
+            .setTitle("🚫 Sistema de Moderação")
+            .setDescription("Painel de moderação")
             .setColor("Red");
 
         const row = new ActionRowBuilder().addComponents(
+
             new ButtonBuilder()
                 .setCustomId("ban")
                 .setLabel("Ban")
@@ -122,7 +127,10 @@ client.on("ready", async () => {
                 .setStyle(ButtonStyle.Primary)
         );
 
-        await canalMod.send({ embeds: [embed], components: [row] });
+        await canalMod.send({
+            embeds: [embed],
+            components: [row]
+        });
     }
 });
 
@@ -187,6 +195,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             );
 
         const row = new ActionRowBuilder().addComponents(
+
             new ButtonBuilder()
                 .setCustomId(`aprovar_${interaction.user.id}`)
                 .setLabel("Aprovar")
@@ -198,7 +207,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 .setStyle(ButtonStyle.Danger)
         );
 
-        await canal.send({ embeds: [embed], components: [row] });
+        await canal.send({
+            embeds: [embed],
+            components: [row]
+        });
 
         return interaction.reply({
             content: "Seu pedido foi enviado!",
@@ -232,7 +244,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const idInformado =
                 embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
 
-            // ===== APROVAR =====
+            // ================= APROVAR =================
             if (acao === "aprovar") {
 
                 try {
@@ -244,13 +256,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         CARGO_APROVADO_2
                     ]);
 
-                    const mensagem = `<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7 ** <:emojia7:1429141492080967730>
+                    const mensagem = `
+<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7** <:emojia7:1429141492080967730>
 
-** Parabéns! Agora vc e um membro oficial da Family A7 ,
-Seu set foi aceito , um lugar onde a vibe é diferente,
-A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu próprio jeito... **
-
-✨ **Seja muito bem-vindo!** ✨`;
+**Parabéns! Agora vc é um membro oficial da Family A7**
+`;
 
                     await membro.send(mensagem).catch(() => {});
 
@@ -264,14 +274,17 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
                             { name: "🧭 Acesso aprovado por:", value: `${interaction.user}` }
                         )
                         .setThumbnail(membro.user.displayAvatarURL())
-                        .setFooter({ text: "Aprovado com sucesso!" });
+                        .setFooter({
+                            text: "Aprovado com sucesso!"
+                        });
 
-                    return interaction.update({
+                    await interaction.update({
                         embeds: [embedAprovado],
                         components: []
                     });
 
                 } catch (e) {
+
                     console.log(e);
 
                     return interaction.reply({
@@ -281,12 +294,12 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
                 }
             }
 
-            // ===== NEGAR =====
+            // ================= NEGAR =================
             if (acao === "negar") {
 
                 try {
 
-                    await membro.kick("Registro negado pelo aprovador.");
+                    await membro.kick("Registro negado.");
 
                     const embedNegado = new EmbedBuilder()
                         .setColor("Red")
@@ -296,16 +309,17 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
                         )
                         .setThumbnail(membro.user.displayAvatarURL());
 
-                    return interaction.update({
+                    await interaction.update({
                         embeds: [embedNegado],
                         components: []
                     });
 
                 } catch (e) {
+
                     console.log(e);
 
                     return interaction.reply({
-                        content: "❌ Não foi possível expulsar o usuário.",
+                        content: "❌ Não foi possível expulsar.",
                         ephemeral: true
                     });
                 }
@@ -314,7 +328,7 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
     }
 
     // =====================================================
-    // ====================== MOD BUTTONS ==================
+    // ====================== BOTÕES MOD ===================
     // =====================================================
     if (interaction.isButton()) {
 
@@ -338,37 +352,73 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
             return modal;
         };
 
+        // ===== BAN =====
         if (interaction.customId === "ban") {
+
             return interaction.showModal(
                 criarModal("ban_modal", "Banir Usuário", [
-                    { id: "id", label: "ID", style: TextInputStyle.Short },
-                    { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+                    {
+                        id: "id",
+                        label: "ID do usuário",
+                        style: TextInputStyle.Short
+                    },
+                    {
+                        id: "motivo",
+                        label: "Motivo",
+                        style: TextInputStyle.Paragraph
+                    }
                 ])
             );
         }
 
+        // ===== UNBAN =====
         if (interaction.customId === "unban") {
+
             return interaction.showModal(
                 criarModal("unban_modal", "Desbanir Usuário", [
-                    { id: "id", label: "ID", style: TextInputStyle.Short }
+                    {
+                        id: "id",
+                        label: "ID do usuário",
+                        style: TextInputStyle.Short
+                    }
                 ])
             );
         }
 
+        // ===== KICK =====
         if (interaction.customId === "kick") {
+
             return interaction.showModal(
                 criarModal("kick_modal", "Kick Usuário", [
-                    { id: "id", label: "ID", style: TextInputStyle.Short },
-                    { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+                    {
+                        id: "id",
+                        label: "ID do usuário",
+                        style: TextInputStyle.Short
+                    },
+                    {
+                        id: "motivo",
+                        label: "Motivo",
+                        style: TextInputStyle.Paragraph
+                    }
                 ])
             );
         }
 
+        // ===== WARN =====
         if (interaction.customId === "warn") {
+
             return interaction.showModal(
                 criarModal("warn_modal", "Warn Usuário", [
-                    { id: "id", label: "ID", style: TextInputStyle.Short },
-                    { id: "motivo", label: "Motivo", style: TextInputStyle.Paragraph }
+                    {
+                        id: "id",
+                        label: "ID do usuário",
+                        style: TextInputStyle.Short
+                    },
+                    {
+                        id: "motivo",
+                        label: "Motivo",
+                        style: TextInputStyle.Paragraph
+                    }
                 ])
             );
         }
@@ -379,7 +429,7 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
     // =====================================================
     if (interaction.isModalSubmit()) {
 
-        // ===== BAN =====
+        // ================= BAN =================
         if (interaction.customId === "ban_modal") {
 
             const id = interaction.fields.getTextInputValue("id");
@@ -396,13 +446,51 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
 
             await member.ban({ reason: motivo });
 
+            // ===== LOG =====
+            const canalPunicoes = await client.channels.fetch(CANAL_PUNICOES);
+
+            const hora = new Date().toLocaleString("pt-BR", {
+                timeZone: "America/Sao_Paulo"
+            });
+
+            const embedPunicao = new EmbedBuilder()
+                .setColor("Red")
+                .setTitle("🛡️ Sistema de Moderação")
+                .addFields(
+                    {
+                        name: "👤 Usuário",
+                        value: `${member.user}`,
+                    },
+                    {
+                        name: "📌 Punição",
+                        value: "Ban",
+                    },
+                    {
+                        name: "📝 Motivo",
+                        value: motivo,
+                    },
+                    {
+                        name: "🕒 Data e Hora",
+                        value: hora,
+                    },
+                    {
+                        name: "🛡️ Quem aplicou",
+                        value: `${interaction.user}`,
+                    }
+                )
+                .setThumbnail(member.user.displayAvatarURL());
+
+            await canalPunicoes.send({
+                embeds: [embedPunicao]
+            });
+
             return interaction.reply({
-                content: "Ban aplicado!",
+                content: "✅ Ban aplicado!",
                 ephemeral: true
             });
         }
 
-        // ===== UNBAN =====
+        // ================= UNBAN =================
         if (interaction.customId === "unban_modal") {
 
             const id = interaction.fields.getTextInputValue("id");
@@ -410,12 +498,12 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
             await interaction.guild.bans.remove(id).catch(() => {});
 
             return interaction.reply({
-                content: "Unban aplicado!",
+                content: "✅ Unban aplicado!",
                 ephemeral: true
             });
         }
 
-        // ===== KICK =====
+        // ================= KICK =================
         if (interaction.customId === "kick_modal") {
 
             const id = interaction.fields.getTextInputValue("id");
@@ -432,13 +520,51 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
 
             await member.kick(motivo);
 
+            // ===== LOG =====
+            const canalPunicoes = await client.channels.fetch(CANAL_PUNICOES);
+
+            const hora = new Date().toLocaleString("pt-BR", {
+                timeZone: "America/Sao_Paulo"
+            });
+
+            const embedPunicao = new EmbedBuilder()
+                .setColor("Orange")
+                .setTitle("🛡️ Sistema de Moderação")
+                .addFields(
+                    {
+                        name: "👤 Usuário",
+                        value: `${member.user}`,
+                    },
+                    {
+                        name: "📌 Punição",
+                        value: "Kick",
+                    },
+                    {
+                        name: "📝 Motivo",
+                        value: motivo,
+                    },
+                    {
+                        name: "🕒 Data e Hora",
+                        value: hora,
+                    },
+                    {
+                        name: "🛡️ Quem aplicou",
+                        value: `${interaction.user}`,
+                    }
+                )
+                .setThumbnail(member.user.displayAvatarURL());
+
+            await canalPunicoes.send({
+                embeds: [embedPunicao]
+            });
+
             return interaction.reply({
-                content: "Kick aplicado!",
+                content: "✅ Kick aplicado!",
                 ephemeral: true
             });
         }
 
-        // ===== WARN =====
+        // ================= WARN =================
         if (interaction.customId === "warn_modal") {
 
             const id = interaction.fields.getTextInputValue("id");
@@ -448,8 +574,50 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
 
             warns.get(id).push(motivo);
 
+            const membroWarn = await interaction.guild.members.fetch(id).catch(() => null);
+
+            // ===== LOG =====
+            const canalPunicoes = await client.channels.fetch(CANAL_PUNICOES);
+
+            const hora = new Date().toLocaleString("pt-BR", {
+                timeZone: "America/Sao_Paulo"
+            });
+
+            const embedPunicao = new EmbedBuilder()
+                .setColor("Yellow")
+                .setTitle("🛡️ Sistema de Moderação")
+                .addFields(
+                    {
+                        name: "👤 Usuário",
+                        value: `${membroWarn || id}`,
+                    },
+                    {
+                        name: "📌 Punição",
+                        value: "Warn",
+                    },
+                    {
+                        name: "📝 Motivo",
+                        value: motivo,
+                    },
+                    {
+                        name: "🕒 Data e Hora",
+                        value: hora,
+                    },
+                    {
+                        name: "🛡️ Quem aplicou",
+                        value: `${interaction.user}`,
+                    }
+                )
+                .setThumbnail(
+                    membroWarn?.user.displayAvatarURL() || null
+                );
+
+            await canalPunicoes.send({
+                embeds: [embedPunicao]
+            });
+
             return interaction.reply({
-                content: "Warn aplicado!",
+                content: "✅ Warn aplicado!",
                 ephemeral: true
             });
         }
