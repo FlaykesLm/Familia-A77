@@ -2,7 +2,6 @@
 const express = require("express");
 const app = express();
 
-// Página inicial para UptimeRobot
 app.get("/", (req, res) => res.send("Bot ativo e rodando 24h! 🚀"));
 app.listen(3000, () => console.log("🌐 KeepAlive ativo na porta 3000!"));
 
@@ -21,6 +20,7 @@ const {
     TextInputBuilder,
     TextInputStyle,
     Events,
+    PermissionsBitField
 } = require("discord.js");
 
 const client = new Client({
@@ -147,7 +147,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
     const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
 
-    // ======== APROVAR =========
     if (acao === "aprovar") {
         try {
             await membro.setNickname(`A7 ${nomeInformado}`);
@@ -155,11 +154,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             const mensagem = `<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7 ** <:emojia7:1429141492080967730>
 
-
-** Parabéns! Agora vc e um membro oficial da Family A7 , 
+** Parabéns! Agora vc e um membro oficial da Family A7 ,
 Seu set foi aceito , um lugar onde a vibe é diferente,
 A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu próprio jeito... **
-
 
 ✨ **Seja muito bem-vindo!** ✨**`;
 
@@ -185,7 +182,6 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
         }
     }
 
-    // ======== NEGAR =========
     if (acao === "negar") {
         try {
             await membro.kick("Registro negado pelo aprovador.");
@@ -208,8 +204,10 @@ A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu
 // =================== PV PARA TODOS ===================
 client.on("messageCreate", async (message) => {
     if (!message.content.startsWith("!pvall")) return;
-    if (!message.member.permissions.has("Administrator"))
+
+    if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return message.reply("❌ Você não tem permissão!");
+    }
 
     const texto = message.content.split(" ").slice(1).join(" ");
     if (!texto) return message.reply("⚠️ Escreva uma mensagem!");
@@ -223,6 +221,7 @@ client.on("messageCreate", async (message) => {
 
     members.forEach(m => {
         if (m.user.bot) return;
+
         m.send(`📩 **Família A7:**\n${texto}`)
             .then(() => enviados++)
             .catch(() => falhou++);
@@ -230,93 +229,10 @@ client.on("messageCreate", async (message) => {
 
     setTimeout(() => {
         message.channel.send(
-            `✔️ Mensagens enviadas para **${enviados} membros**.\n⚠️ Falhou em **${falhou} membros** (DM fechada).`
+            `✔️ Mensagens enviadas para **${enviados} membros**.\n⚠️ Falhou em **${falhou} membros**.`
         );
     }, 5000);
 });
-
-// ==================== BOT EM CALL 24H ====================
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
-
-client.on("ready", async () => {
-    try {
-        const canal = client.channels.cache.get(process.env.CALL_24H);
-        if (!canal) return console.log("❌ Canal de voz não encontrado!");
-
-        const conexao = joinVoiceChannel({
-            channelId: canal.id,
-            guildId: canal.guild.id,
-            adapterCreator: canal.guild.voiceAdapterCreator,
-            selfDeaf: false
-        });
-
-        const player = createAudioPlayer();
-        const resource = createAudioResource("silencio.mp3");
-
-        player.play(resource);
-        conexao.subscribe(player);
-
-        console.log("🔊 Bot conectado em call 24h!");
-    } catch (err) {
-        console.log("Erro ao conectar no VC:", err);
-    }
-}); // FECHA O READY AQUI
-
-// ====================== BOAS-VINDAS ======================
-client.on("guildMemberAdd", async (member) => {
-    try {
-
-        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
-
-        if (!canalBoasVindas)
-            return console.log("❌ Canal de boas-vindas não encontrado!");
-
-        const embed = new EmbedBuilder()
-            .setColor("#2b2d31")
-            .setTitle("🎉 Bem-vindo(a)!")
-            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-            .addFields(
-                {
-                    name: "💡 Sabia que...",
-                    value: `Você é o Nosso **${member.guild.memberCount}º** membro a entrar no servidor!`,
-                    inline: true
-                },
-                {
-                    name: "🏷️ Tag do Usuário",
-                    value: `\`${member.user.tag}\`\n(${member.id})`,
-                    inline: true
-                },
-                {
-                    name: "❓ Precisando de ajuda?",
-                    value: `Em caso de Duvida fale com um <@&1439068773112873114> Pra Cima !`,
-                    inline: true
-                },
-                {
-                    name: "⚠️ Evite punições",
-                    value: `Leia as https://discord.com/channels/1408821123986231348/1505994371697217676  do servidor para evitar punições!`,
-                    inline: false
-                }
-            )
-            .setImage("https://cdn.discordapp.com/attachments/1401678843311427594/1506808671923994766/standard.gif?ex=6a0f9c6e&is=6a0e4aee&hm=c7569bb1a09f40419192809660874aef736c626e01b7292f9c43d012ac20e0a2&")
-            .setFooter({
-                text: "Todos os direitos reservados."
-            })
-            .setTimestamp();
-
-        await canalBoasVindas.send({
-            content: `🎉 ${member}`,
-            embeds: [embed]
-        });
-
-    } catch (err) {
-        console.log("Erro na mensagem de boas-vindas:", err);
-    }
-});
-
-const { PermissionsBitField } = require("discord.js");
-
-const { PermissionsBitField } = require("discord.js");
 
 // ====================== COMANDOS ======================
 client.on("messageCreate", async (message) => {
@@ -400,4 +316,78 @@ client.on("messageCreate", async (message) => {
     }
 
 });
+
+// ==================== BOT EM CALL 24H ====================
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
+
+client.on("ready", async () => {
+    try {
+        const canal = client.channels.cache.get(process.env.CALL_24H);
+
+        if (!canal) return console.log("❌ Canal de voz não encontrado!");
+
+        const conexao = joinVoiceChannel({
+            channelId: canal.id,
+            guildId: canal.guild.id,
+            adapterCreator: canal.guild.voiceAdapterCreator,
+            selfDeaf: false
+        });
+
+        const player = createAudioPlayer();
+        const resource = createAudioResource("silencio.mp3");
+
+        player.play(resource);
+        conexao.subscribe(player);
+
+        console.log("🔊 Bot conectado em call 24h!");
+
+    } catch (err) {
+        console.log("Erro ao conectar no VC:", err);
+    }
+});
+
+// ====================== BOAS-VINDAS ======================
+client.on("guildMemberAdd", async (member) => {
+    try {
+
+        const canalBoasVindas = member.guild.channels.cache.get(process.env.CANAL_BOAS_VINDAS);
+
+        if (!canalBoasVindas)
+            return console.log("❌ Canal de boas-vindas não encontrado!");
+
+        const embed = new EmbedBuilder()
+            .setColor("#2b2d31")
+            .setTitle("🎉 Bem-vindo(a)!")
+            .setDescription(`👋 Olá ${member}, seja bem-vindo(a) ao servidor!`)
+            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: "💡 Sabia que...",
+                    value: `Você é o Nosso **${member.guild.memberCount}º** membro!`,
+                    inline: true
+                },
+                {
+                    name: "🏷️ Tag do Usuário",
+                    value: `\`${member.user.tag}\`\n(${member.id})`,
+                    inline: true
+                },
+                {
+                    name: "❓ Precisando de ajuda?",
+                    value: `Fale com um <@&1439068773112873114>`,
+                    inline: true
+                }
+            )
+            .setTimestamp();
+
+        await canalBoasVindas.send({
+            content: `🎉 ${member}`,
+            embeds: [embed]
+        });
+
+    } catch (err) {
+        console.log("Erro na mensagem de boas-vindas:", err);
+    }
+});
+
+// ====================== LOGIN ======================
 client.login(TOKEN);
