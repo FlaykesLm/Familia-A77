@@ -102,45 +102,57 @@ client.on("ready", async () => {
     }
 
     // ================= MOD PANEL =================
-    const canalMod = await client.channels.fetch(CANAL_MOD).catch(() => null);
+try {
 
-    if (canalMod) {
+    const canalMod = await client.channels.fetch(CANAL_MOD);
 
-        const embed = new EmbedBuilder()
-            .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
-            .setDescription("Ban : Banir Usuario\nUnban : Remover\nKick : Expulsar do Server\nWarn : Adv - 3 Adv e Kick do server")
-            .setColor("Red");
-
-        const row = new ActionRowBuilder().addComponents(
-
-            new ButtonBuilder()
-                .setCustomId("ban")
-                .setLabel("Ban")
-                .setStyle(ButtonStyle.Danger),
-
-            new ButtonBuilder()
-                .setCustomId("unban")
-                .setLabel("Unban")
-                .setStyle(ButtonStyle.Success),
-
-            new ButtonBuilder()
-                .setCustomId("kick")
-                .setLabel("Kick")
-                .setStyle(ButtonStyle.Secondary),
-
-            new ButtonBuilder()
-                .setCustomId("warn")
-                .setLabel("Warn")
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        await canalMod.send({
-            embeds: [embed],
-            components: [row]
-        });
-
-        console.log("🛡️ Painel mod enviado!");
+    if (!canalMod) {
+        console.log("❌ Canal MOD não encontrado!");
+        return;
     }
+
+    const embed = new EmbedBuilder()
+        .setTitle(" <:emojia7:1429141492080967730> Moderação A7 ")
+        .setDescription(
+            "Ban : Banir Usuario\nUnban : Remover\nKick : Expulsar do Server\nWarn : Adv - 3 Adv e Kick do server"
+        )
+        .setColor("Red");
+
+    const row = new ActionRowBuilder().addComponents(
+
+        new ButtonBuilder()
+            .setCustomId("ban")
+            .setLabel("Ban")
+            .setStyle(ButtonStyle.Danger),
+
+        new ButtonBuilder()
+            .setCustomId("unban")
+            .setLabel("Unban")
+            .setStyle(ButtonStyle.Success),
+
+        new ButtonBuilder()
+            .setCustomId("kick")
+            .setLabel("Kick")
+            .setStyle(ButtonStyle.Secondary),
+
+        new ButtonBuilder()
+            .setCustomId("warn")
+            .setLabel("Warn")
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    await canalMod.send({
+        embeds: [embed],
+        components: [row]
+    });
+
+    console.log("✅ Painel MOD enviado!");
+
+} catch (err) {
+
+    console.log("❌ Erro ao enviar painel MOD:");
+    console.log(err);
+}
 
     // ==================== BOT EM CALL 24H ====================
     try {
