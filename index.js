@@ -60,25 +60,6 @@ const warns = new Map();
 client.on("ready", async () => {
     console.log(`🤖 Bot ligado como ${client.user.tag}`);
 
-    // ====================== SET (NÃO ALTERADO) ======================
-    const canalSet = await client.channels.fetch(CANAL_PEDIR_SET).catch(() => null);
-
-    if (canalSet) {
-        const embed = new EmbedBuilder()
-            .setTitle("Sistema Família A7")
-            .setDescription("Registro A7.\n\nSolicite SET usando o botão abaixo.")
-            .setColor("#f1c40f");
-
-        const btn = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("abrirRegistro")
-                .setLabel("Registro")
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        canalSet.send({ embeds: [embed], components: [btn] });
-    }
-
     // ====================== BAN PANEL ======================
     const canalBan = await client.channels.fetch(CANAL_BAN).catch(() => null);
 
