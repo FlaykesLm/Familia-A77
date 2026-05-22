@@ -25,6 +25,7 @@ const {
 
 const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require("@discordjs/voice");
 
+// ====================== CLIENT ======================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -40,10 +41,11 @@ const {
     STAFF_ROLE_ID,
     CANAL_MOD,
     CALL_24H,
-
+    CANAL_BOAS_VINDAS,
+    TOKEN
 } = process.env;
 
-// ====================== FUNÇÃO STAFF ======================
+// ====================== STAFF CHECK ======================
 function isStaff(member) {
     return (
         member.permissions.has(PermissionsBitField.Flags.Administrator) ||
@@ -81,7 +83,7 @@ client.on("ready", async () => {
 
     // ====================== CALL 24H ======================
     try {
-        const canalVC = client.channels.cache.get(CALL_24H);
+        const canalVC = await client.channels.fetch(CALL_24H).catch(() => null);
 
         if (canalVC) {
             const conn = joinVoiceChannel({
@@ -122,181 +124,6 @@ client.on("ready", async () => {
     }
 });
 
-
-// ====================== VARIÁVEIS DO .ENV =================
-const CANAL_PEDIR_SET = process.env.CANAL_PEDIR_SET;
-const CANAL_ACEITA_SET = process.env.CANAL_ACEITA_SET;
-const CARGO_APROVADO = process.env.CARGO_APROVADO;
-const CARGO_APROVADO_2 = process.env.CARGO_APROVADO_2;
-const TOKEN = process.env.TOKEN;
-
-// ====================== BOT ONLINE ========================
-client.on("ready", async () => {
-    console.log(`🤖 Bot ligado como ${client.user.tag}`);
-
-    const canal = await client.channels.fetch(CANAL_PEDIR_SET);
-
-    const embed = new EmbedBuilder()
-        .setTitle("Sistema Família Do7")
-        .setDescription(
-            "Registro A7.\n\nSolicite SET usando o botão abaixo.\nPreencha com atenção!"
-        )
-        .addFields({
-            name: "📌 Lembretes",
-            value: "• A resenha aqui é garantida.\n• Não leve tudo a sério.",
-        })
-        .setColor("#f1c40f");
-
-    const btn = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId("abrirRegistro")
-            .setLabel("Registro")
-            .setStyle(ButtonStyle.Primary)
-    );
-
-    await canal.send({ embeds: [embed], components: [btn] });
-    console.log("📩 Mensagem de registro enviada!");
-});
-
-// ====================== ABRIR MODAL ========================
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isButton()) return;
-    if (interaction.customId !== "abrirRegistro") return;
-
-    const modal = new ModalBuilder()
-        .setCustomId("modalRegistro")
-        .setTitle("Solicitação de Set");
-
-    const nome = new TextInputBuilder()
-        .setCustomId("nome")
-        .setLabel("Seu nome*")
-        .setRequired(true)
-        .setStyle(TextInputStyle.Short);
-
-    const id = new TextInputBuilder()
-        .setCustomId("iduser")
-        .setLabel("Seu ID*")
-        .setRequired(true)
-        .setStyle(TextInputStyle.Short);
-
-    modal.addComponents(
-        new ActionRowBuilder().addComponents(nome),
-        new ActionRowBuilder().addComponents(id)
-    );
-
-    await interaction.showModal(modal);
-});
-
-// ====================== RECEBER FORM ========================
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isModalSubmit()) return;
-    if (interaction.customId !== "modalRegistro") return;
-
-    const nome = interaction.fields.getTextInputValue("nome");
-    const iduser = interaction.fields.getTextInputValue("iduser");
-    const canal = await client.channels.fetch(CANAL_ACEITA_SET);
-
-    const embed = new EmbedBuilder()
-        .setTitle("Novo Pedido de Registro")
-        .setColor("#3498db")
-        .setThumbnail(interaction.user.displayAvatarURL())
-        .addFields(
-            { name: "Usuário", value: `${interaction.user}` },
-            { name: "Nome Informado", value: nome },
-            { name: "ID Informado", value: iduser },
-            {
-                name: "Conta Criada em",
-                value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`,
-            }
-        );
-
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`aprovar_${interaction.user.id}`)
-            .setLabel("Aprovar")
-            .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-            .setCustomId(`negar_${interaction.user.id}`)
-            .setLabel("Negar")
-            .setStyle(ButtonStyle.Danger)
-    );
-
-    await canal.send({ embeds: [embed], components: [row] });
-    await interaction.reply({ content: "Seu pedido foi enviado!", ephemeral: true });
-});
-
-// =================== APROVAR / NEGAR ===================
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isButton()) return;
-
-    const [acao, userId] = interaction.customId.split("_");
-    if (!["aprovar", "negar"].includes(acao)) return;
-
-    const membro = await interaction.guild.members.fetch(userId);
-    const embedOriginal = interaction.message.embeds[0];
-
-    const nomeInformado = embedOriginal.fields.find(f => f.name === "Nome Informado")?.value;
-    const idInformado = embedOriginal.fields.find(f => f.name === "ID Informado")?.value;
-
-    // ======== APROVAR =========
-    if (acao === "aprovar") {
-        try {
-            await membro.setNickname(`A7 ${nomeInformado}`);
-            await membro.roles.add([CARGO_APROVADO, CARGO_APROVADO_2]);
-
-            const mensagem = `<a:coroa4:1425236745762504768> **Seja Muito Bem-vindo à Family A7 ** <:emojia7:1429141492080967730>
-
-
-** Parabéns! Agora vc e um membro oficial da Family A7 , 
-Seu set foi aceito , um lugar onde a vibe é diferente,
-A resenha aqui e 24 horas por dia, a energia é única e cada pessoa soma do seu próprio jeito... **
-
-
-✨ **Seja muito bem-vindo!** ✨**`;
-
-            await membro.send(mensagem).catch(() => {});
-
-            const embedAprovado = new EmbedBuilder()
-                .setColor("Green")
-                .setTitle("Registro Aprovado")
-                .addFields(
-                    { name: "👤 Usuário:", value: `${membro}` },
-                    { name: "🪪 ID:", value: `${idInformado}` },
-                    { name: "📛 Nome Informado:", value: `A7 ${nomeInformado}` },
-                    { name: "🧭 Acesso aprovado por:", value: `${interaction.user}` }
-                )
-                .setThumbnail(membro.user.displayAvatarURL())
-                .setFooter({ text: "Aprovado com sucesso!" });
-
-            await interaction.update({ embeds: [embedAprovado], components: [] });
-
-        } catch (e) {
-            console.log(e);
-            return interaction.reply({ content: "❌ Erro ao aprovar.", ephemeral: true });
-        }
-    }
-
-    // ======== NEGAR =========
-    if (acao === "negar") {
-        try {
-            await membro.kick("Registro negado pelo aprovador.");
-
-            const embedNegado = new EmbedBuilder()
-                .setColor("Red")
-                .setTitle("Registro Negado")
-                .setDescription(`❌ O usuário **${membro.user.tag}** foi expulso.\nNegado por: ${interaction.user}`)
-                .setThumbnail(membro.user.displayAvatarURL());
-
-            await interaction.update({ embeds: [embedNegado], components: [] });
-
-        } catch (e) {
-            console.log(e);
-            return interaction.reply({ content: "❌ Não foi possível expulsar o usuário.", ephemeral: true });
-        }
-    }
-});
-
-
 // =========================================================
 // ====================== MODERATION =======================
 // =========================================================
@@ -304,31 +131,36 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (!interaction.guild) return;
 
-    const isButtonOrModal = interaction.isButton() || interaction.isModalSubmit();
-
-    if (isButtonOrModal && !isStaff(interaction.member)) {
-        return interaction.reply({ content: "❌ Sem permissão", ephemeral: true });
+    // 🔒 PERMISSÃO (não bloqueia registro nem modals internos)
+    if ((interaction.isButton() || interaction.isModalSubmit()) &&
+        !interaction.customId.includes("Registro") &&
+        !interaction.customId.includes("modalRegistro") &&
+        !isStaff(interaction.member)
+    ) {
+        return interaction.reply({
+            content: "❌ Sem permissão",
+            flags: 64
+        });
     }
 
-    // ================= MODALS ACTION =================
-
+    // ================= MODALS =================
     if (interaction.customId === "ban_modal") {
         const id = interaction.fields.getTextInputValue("id");
         const motivo = interaction.fields.getTextInputValue("motivo");
 
         const member = await interaction.guild.members.fetch(id).catch(() => null);
-        if (!member) return interaction.reply({ content: "Usuário não encontrado", ephemeral: true });
+        if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
 
         await member.ban({ reason: motivo });
 
-        return interaction.reply({ content: "Ban aplicado!", ephemeral: true });
+        return interaction.reply({ content: "Ban aplicado!", flags: 64 });
     }
 
     if (interaction.customId === "unban_modal") {
         const id = interaction.fields.getTextInputValue("id");
         await interaction.guild.bans.remove(id).catch(() => {});
 
-        return interaction.reply({ content: "Unban aplicado!", ephemeral: true });
+        return interaction.reply({ content: "Unban aplicado!", flags: 64 });
     }
 
     if (interaction.customId === "kick_modal") {
@@ -336,11 +168,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const motivo = interaction.fields.getTextInputValue("motivo");
 
         const member = await interaction.guild.members.fetch(id).catch(() => null);
-        if (!member) return interaction.reply({ content: "Usuário não encontrado", ephemeral: true });
+        if (!member) return interaction.reply({ content: "Usuário não encontrado", flags: 64 });
 
         await member.kick(motivo);
 
-        return interaction.reply({ content: "Kick aplicado!", ephemeral: true });
+        return interaction.reply({ content: "Kick aplicado!", flags: 64 });
     }
 
     if (interaction.customId === "warn_modal") {
@@ -350,11 +182,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (!warns.has(id)) warns.set(id, []);
         warns.get(id).push(motivo);
 
-        return interaction.reply({ content: "Warn aplicado!", ephemeral: true });
+        return interaction.reply({ content: "Warn aplicado!", flags: 64 });
     }
 
-    // ================= BUTTON OPEN MODALS =================
-
+    // ================= BUTTON MODALS =================
     if (interaction.isButton()) {
 
         const modal = (id, title, fields) => {
@@ -400,6 +231,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
+
+// =========================================================
+// ====================== BOAS-VINDAS ======================
+// =========================================================
 // ====================== BOAS-VINDAS ======================
 client.on("guildMemberAdd", async (member) => {
     try {
@@ -427,12 +262,12 @@ client.on("guildMemberAdd", async (member) => {
                 },
                 {
                     name: "❓ Precisando de ajuda?",
-                    value: `Caso você tenha alguma dúvida Contate Alguem !`,
+                    value: `Caso você tenha alguma dúvida ou problema, chame a equipe!`,
                     inline: true
                 },
                 {
                     name: "⚠️ Evite punições",
-                    value: `Leia as https://discord.com/channels/1408821123986231348/1505994371697217676 do servidor para evitar punições!`,
+                    value: `Leia as regras do servidor para evitar punições!`,
                     inline: false
                 }
             )
